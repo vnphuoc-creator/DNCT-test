@@ -17,8 +17,12 @@ create table if not exists quiz_results (
   score int not null,
   total int not null,
   answers jsonb,                 -- chi tiết từng câu: [{question_id, question_text, selected_index, correct_index, is_correct}, ...]
+  duration_seconds int,          -- thời gian làm bài, tính bằng giây
   created_at timestamptz default now()
 );
+
+-- Nếu bảng quiz_results đã tồn tại từ trước (chưa có cột này), thêm vào:
+alter table quiz_results add column if not exists duration_seconds int;
 
 -- Bật Row Level Security (bắt buộc với Supabase)
 alter table questions enable row level security;

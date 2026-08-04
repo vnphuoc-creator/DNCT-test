@@ -3,6 +3,13 @@
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "../../lib/supabaseClient";
 
+function formatDuration(seconds) {
+  if (seconds === null || seconds === undefined) return "—";
+  const m = Math.floor(seconds / 60);
+  const s = seconds % 60;
+  return `${m} phút ${s.toString().padStart(2, "0")} giây`;
+}
+
 export default function ReportPage() {
   const [status, setStatus] = useState("loading"); // loading | error | ready
   const [errorMsg, setErrorMsg] = useState("");
@@ -77,12 +84,27 @@ export default function ReportPage() {
   async function handleExportExcel() {
     const XLSX = await import("xlsx");
 
-    // Sheet 1: Tổng quan
-    const overviewSheetData = [
-      ["Tổng số lượt làm bài", stats.count],
-      ["Điểm trung bình (%)", stats.avg],
-      ["Điểm cao nhất (%)", stats.max],
-      ["Điểm thấp nhất (%)", stats.min],
+    // Sheet 1: Tổng hợp mỗi người — đúng các trường yêu cầu
+    const summarySheetData = [
+      [
+        "Tên người làm bài",
+        "Số câu trả lời đúng",
+        "Tổng số câu",
+        "Tỉ lệ phần trăm (%)",
+        "Thời gian làm bài",
+        "Thời gian hoàn thành",
+      ],
+      ...results.map((r) => {
+        const percent = r.total > 0 ? Math.round((r.score / r.total) * 100) : 0;
+        return [
+          r.user_name,
+          r.score,
+          r.total,
+          percent,
+          formatDuration(r.duration_seconds),
+          new Date(r.created_at).toLocaleString("vi-VN"),
+        ];
+      }),
     ];
 
     // Sheet 2: Câu hỏi hay sai nhất
@@ -91,16 +113,28 @@ export default function ReportPage() {
       ...stats.hardestQuestions.map((q) => [q.question, q.wrong, q.total, q.wrongRate]),
     ];
 
-    // Sheet 3: Chi tiết từng người + từng câu
+    // Sheet 3: Chi tiết từng người + từng câu trả lời
     const detailSheetData = [
-      ["Tên", "Điểm", "Tổng câu", "Tỷ lệ (%)", "Thời gian", "Câu hỏi", "Trả lời", "Đáp án đúng", "Kết quả"],
+      [
+        "Tên",
+        "Điểm",
+        "Tổng câu",
+        "Tỷ lệ (%)",
+        "Thời gian làm bài",
+        "Thời gian hoàn thành",
+        "Câu hỏi",
+        "Trả lời",
+        "Đáp án đúng",
+        "Kết quả",
+      ],
     ];
     for (const r of results) {
       const answers = r.answers || [];
       const percent = r.total > 0 ? Math.round((r.score / r.total) * 100) : 0;
+      const duration = formatDuration(r.duration_seconds);
       const time = new Date(r.created_at).toLocaleString("vi-VN");
       if (answers.length === 0) {
-        detailSheetData.push([r.user_name, r.score, r.total, percent, time, "", "", "", ""]);
+        detailSheetData.push([r.user_name, r.score, r.total, percent, duration, time, "", "", "", ""]);
       } else {
         for (const a of answers) {
           detailSheetData.push([
@@ -108,6 +142,7 @@ export default function ReportPage() {
             r.score,
             r.total,
             percent,
+            duration,
             time,
             a.question_text || "",
             a.options?.[a.selected_index] ?? "",
@@ -119,7 +154,7 @@ export default function ReportPage() {
     }
 
     const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(overviewSheetData), "Tong quan");
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(summarySheetData), "Tong hop");
     XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(hardestSheetData), "Cau hoi hay sai");
     XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(detailSheetData), "Chi tiet");
 
@@ -156,7 +191,7 @@ export default function ReportPage() {
   }
 
   return (
-    <div className="card" style={{ maxWidth: 900 }}>
+    <div className="card" style={{ maxWidth: 1000 }}>
       <div className="eyebrow">Báo cáo</div>
       <h2>Kết quả tổng hợp</h2>
 
@@ -209,66 +244,79 @@ export default function ReportPage() {
         <thead>
           <tr>
             <th>Tên</th>
-            <th>Điểm</th>
-            <th>Thời gian</th>
+            <th>Số câu đúng</th>
+            <th>Tỉ lệ %</th>
+            <th>Thời gian làm bài</th>
+            <th>Thời gian hoàn thành</th>
             <th></th>
           </tr>
         </thead>
         <tbody>
-          {results.map((r) => (
-            <>
-              <tr key={r.id}>
-                <td>{r.user_name}</td>
-                <td>
-                  {r.score}/{r.total}
-                </td>
-                <td>{new Date(r.created_at).toLocaleString("vi-VN")}</td>
-                <td>
-                  <button
-                    className="btn-secondary"
-                    style={{ padding: "6px 10px", fontSize: 13 }}
-                    onClick={() => setExpandedId(expandedId === r.id ? null : r.id)}
-                  >
-                    {expandedId === r.id ? "Ẩn" : "Xem"}
-                  </button>
-                </td>
-              </tr>
-              {expandedId === r.id && (
-                <tr>
-                  <td colSpan={4} style={{ background: "#0d1620" }}>
-                    {(r.answers || []).length === 0 ? (
-                      <p style={{ margin: "8px 0" }}>
-                        Lượt làm bài này chưa lưu chi tiết từng câu (thực hiện trước khi tính năng
-                        này được bật).
-                      </p>
-                    ) : (
-                      <div style={{ padding: "8px 0" }}>
-                        {r.answers.map((a, i) => (
-                          <div
-                            key={i}
-                            style={{
-                              padding: "8px 0",
-                              borderBottom: "1px solid var(--panel-border)",
-                            }}
-                          >
-                            <div style={{ marginBottom: 4 }}>
-                              {i + 1}. {a.question_text}
-                            </div>
-                            <div style={{ fontSize: 13, color: "var(--text-dim)" }}>
-                              Trả lời: {a.options?.[a.selected_index]} —{" "}
-                              <span style={{ color: a.is_correct ? "var(--accent)" : "var(--wrong)" }}>
-                                {a.is_correct ? "Đúng" : `Sai (đáp án đúng: ${a.options?.[a.correct_index]})`}
-                              </span>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    )}
+          {results.map((r) => {
+            const percent = r.total > 0 ? Math.round((r.score / r.total) * 100) : 0;
+            return (
+              <>
+                <tr key={r.id}>
+                  <td>{r.user_name}</td>
+                  <td>
+                    {r.score}/{r.total}
+                  </td>
+                  <td>{percent}%</td>
+                  <td>{formatDuration(r.duration_seconds)}</td>
+                  <td>{new Date(r.created_at).toLocaleString("vi-VN")}</td>
+                  <td>
+                    <button
+                      className="btn-secondary"
+                      style={{ padding: "6px 10px", fontSize: 13 }}
+                      onClick={() => setExpandedId(expandedId === r.id ? null : r.id)}
+                    >
+                      {expandedId === r.id ? "Ẩn" : "Xem"}
+                    </button>
                   </td>
                 </tr>
-              )}
-            </>
-          ))}
+                {expandedId === r.id && (
+                  <tr>
+                    <td colSpan={6} style={{ background: "#0d1620" }}>
+                      {(r.answers || []).length === 0 ? (
+                        <p style={{ margin: "8px 0" }}>
+                          Lượt làm bài này chưa lưu chi tiết từng câu (thực hiện trước khi tính
+                          năng này được bật).
+                        </p>
+                      ) : (
+                        <div style={{ padding: "8px 0" }}>
+                          {r.answers.map((a, i) => (
+                            <div
+                              key={i}
+                              style={{
+                                padding: "8px 0",
+                                borderBottom: "1px solid var(--panel-border)",
+                              }}
+                            >
+                              <div style={{ marginBottom: 4 }}>
+                                {i + 1}. {a.question_text}
+                              </div>
+                              <div style={{ fontSize: 13, color: "var(--text-dim)" }}>
+                                Trả lời: {a.options?.[a.selected_index]} —{" "}
+                                <span
+                                  style={{
+                                    color: a.is_correct ? "var(--accent)" : "var(--wrong)",
+                                  }}
+                                >
+                                  {a.is_correct
+                                    ? "Đúng"
+                                    : `Sai (đáp án đúng: ${a.options?.[a.correct_index]})`}
+                                </span>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </td>
+                  </tr>
+                )}
+              </>
+            );
+          })}
         </tbody>
       </table>
 

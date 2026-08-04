@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { supabase } from "../../lib/supabaseClient";
 import { getQuizWindowStatus, formatVNDateTime } from "../../lib/quizWindow";
 
@@ -26,6 +26,7 @@ export default function QuizPage() {
   const [score, setScore] = useState(0);
   const [saving, setSaving] = useState(false);
   const [userAnswers, setUserAnswers] = useState([]);
+  const startTimeRef = useRef(null);
 
   useEffect(() => {
     const savedName = localStorage.getItem("quiz_user_name");
@@ -87,6 +88,7 @@ export default function QuizPage() {
       return;
     }
     setQuestions(shuffle(data).slice(0, QUESTIONS_PER_QUIZ));
+    startTimeRef.current = Date.now();
     setStatus("playing");
   }
 
@@ -122,11 +124,15 @@ export default function QuizPage() {
 
   async function finishQuiz() {
     setSaving(true);
+    const durationSeconds = startTimeRef.current
+      ? Math.round((Date.now() - startTimeRef.current) / 1000)
+      : null;
     const { error } = await supabase.from("quiz_results").insert({
       user_name: userName,
       score,
       total: questions.length,
       answers: userAnswers,
+      duration_seconds: durationSeconds,
     });
     setSaving(false);
     if (error) {

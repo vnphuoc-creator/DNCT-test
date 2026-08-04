@@ -113,6 +113,41 @@ quiz-app/
 - **Đổi chữ trên trang chủ**: sửa file `app/page.js`
 - Mỗi lần sửa code và đẩy (push) lên GitHub, Vercel sẽ **tự động deploy lại** — không cần làm gì thêm
 
+## Cập nhật mới: thêm cột "Thời gian làm bài" + hướng dẫn xoá dữ liệu cũ
+
+### 1. Báo cáo giờ có đủ các trường bạn cần
+
+Cả trên màn hình lẫn khi **Xuất báo cáo ra Excel**, mỗi người làm bài giờ hiển thị đủ:
+- Tên người làm bài
+- Số câu trả lời đúng / tổng số câu
+- Tỉ lệ phần trăm
+- **Thời gian làm bài** (tính từ lúc bắt đầu tới lúc nộp bài — tính năng mới)
+- **Thời gian hoàn thành** (thời điểm nộp bài)
+
+**Bắt buộc phải chạy lại 1 dòng SQL** để có cột thời gian làm bài (nếu bỏ qua, web vẫn chạy bình
+thường nhưng cột "Thời gian làm bài" sẽ luôn hiện dấu `—`):
+
+1. Vào Supabase → **SQL Editor** → **New query**
+2. Dán dòng này → **Run**:
+   ```sql
+   alter table quiz_results add column if not exists duration_seconds int;
+   ```
+3. Từ giờ, các lượt làm bài **mới** sẽ tự động ghi lại thời gian làm bài. Các lượt đã làm **trước
+   khi** chạy dòng lệnh này sẽ không có dữ liệu thời gian (hiện dấu `—`), không thể lấy lại được.
+
+### 2. Xoá dữ liệu người đã làm bài trước đó
+
+Việc này thực hiện trong **Supabase** (nơi lưu dữ liệu thật), không phải Vercel. Vào Supabase →
+**SQL Editor** → **New query**, dán 1 trong 2 lệnh sau tuỳ nhu cầu:
+
+**Xoá tất cả kết quả đã làm (giữ nguyên bộ câu hỏi):**
+```sql
+delete from quiz_results;
+```
+
+**Cảnh báo**: lệnh này xoá vĩnh viễn, không khôi phục lại được. Chỉ chạy khi chắc chắn không cần
+giữ lại dữ liệu cũ (ví dụ: đang test thử, muốn xoá sạch để bắt đầu đợt thi thật).
+
 ## Cập nhật mới: chặn làm lại + giới hạn thời gian làm bài
 
 ### 1. Chặn làm lại
