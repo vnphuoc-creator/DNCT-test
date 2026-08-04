@@ -1,0 +1,110 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import { supabase } from "../lib/supabaseClient";
+import { getQuizWindowStatus, formatVNDateTime } from "../lib/quizWindow";
+
+export default function HomePage() {
+  const [name, setName] = useState("");
+  const [error, setError] = useState("");
+  const [checking, setChecking] = useState(false);
+  const [windowStatus, setWindowStatus] = useState({ open: true, reason: null });
+  const router = useRouter();
+
+  useEffect(() => {
+    setWindowStatus(getQuizWindowStatus());
+  }, []);
+
+  async function handleStart(e) {
+    e.preventDefault();
+    setError("");
+    const trimmed = name.trim();
+    if (!trimmed) {
+      setError("Nhập tên của bạn trước khi bắt đầu nhé.");
+      return;
+    }
+
+    const status = getQuizWindowStatus();
+    if (!status.open) {
+      setError(
+        status.reason === "not_started"
+          ? `Bài test chưa mở. Vui lòng quay lại sau lúc ${formatVNDateTime(status.start)}.`
+          : `Bài test đã kết thúc lúc ${formatVNDateTime(status.deadline)}, không thể làm bài nữa.`
+      );
+      return;
+    }
+
+    setChecking(true);
+    const { data, error: fetchError } = await supabase
+      .from("quiz_results")
+      .select("id, score, total, created_at")
+      .ilike("user_name", trimmed)
+      .order("created_at", { ascending: false })
+      .limit(1);
+
+    setChecking(false);
+
+    if (fetchError) {
+      setError("Không kiểm tra được, thử lại sau: " + fetchError.message);
+      return;
+    }
+
+    if (data && data.length > 0) {
+      const prev = data[0];
+      setError(
+        `Tên "${trimmed}" đã làm bài rồi (đạt ${prev.score}/${prev.total} điểm). Mỗi người chỉ được làm 1 lần. Nếu đây là nhầm lẫn, liên hệ người quản lý bài test.`
+      );
+      return;
+    }
+
+    localStorage.setItem("quiz_user_name", trimmed);
+    router.push("/quiz");
+  }
+
+  return (
+    <div className="card">
+      <div className="eyebrow">Bài Test Kiến Thức</div>
+      <h1>Bạn hiểu bao nhiêu về chủ đề này?</h1>
+      <p>
+        Nhập tên để bắt đầu. Mỗi lượt sẽ có 25 câu hỏi ngẫu nhiên, hệ thống
+        tự chấm điểm và lưu lại kết quả của bạn. Mỗi người chỉ được làm{" "}
+        <strong>1 lần duy nhất</strong>.
+      </p>
+
+      {!windowStatus.open && (
+        <div className="error-box">
+          {windowStatus.reason === "not_started"
+            ? `Bài test chưa mở. Sẽ mở lúc ${formatVNDateTime(windowStatus.start)}.`
+            : `Bài test đã kết thúc lúc ${formatVNDateTime(windowStatus.deadline)}.`}
+        </div>
+      )}
+
+      <form onSubmit={handleStart}>
+        {error && <div className="error-box">{error}</div>}
+        <label htmlFor="name">Tên của bạn</label>
+        <input
+          id="name"
+          className="field"
+          type="text"
+          placeholder="Ví dụ: Minh Anh"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          disabled={!windowStatus.open}
+        />
+        <button
+          type="submit"
+          className="btn-primary"
+          disabled={checking || !windowStatus.open}
+        >
+          {checking ? "Đang kiểm tra..." : "Bắt đầu làm bài"}
+        </button>
+      </form>
+
+      <div className="link-row">
+        <a href="/results">Xem lịch sử kết quả →</a>
+        <a href="/report">Xem báo cáo tổng hợp →</a>
+      </div>
+    </div>
+  );
+}
