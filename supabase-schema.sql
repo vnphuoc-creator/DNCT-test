@@ -18,11 +18,17 @@ create table if not exists quiz_results (
   total int not null,
   answers jsonb,                 -- chi tiết từng câu: [{question_id, question_text, selected_index, correct_index, is_correct}, ...]
   duration_seconds int,          -- thời gian làm bài, tính bằng giây
+  period text,                   -- tháng làm bài, dạng "YYYY-MM", ví dụ "2026-08"
   created_at timestamptz default now()
 );
 
--- Nếu bảng quiz_results đã tồn tại từ trước (chưa có cột này), thêm vào:
+-- Nếu bảng quiz_results đã tồn tại từ trước (chưa có các cột này), thêm vào:
 alter table quiz_results add column if not exists duration_seconds int;
+alter table quiz_results add column if not exists period text;
+
+-- Gán "tháng" cho các lượt làm bài cũ đã có sẵn (dựa theo thời điểm nộp bài),
+-- để không bị mất dấu khi tra cứu theo tháng.
+update quiz_results set period = to_char(created_at, 'YYYY-MM') where period is null;
 
 -- Bật Row Level Security (bắt buộc với Supabase)
 alter table questions enable row level security;

@@ -113,6 +113,27 @@ quiz-app/
 - **Đổi chữ trên trang chủ**: sửa file `app/page.js`
 - Mỗi lần sửa code và đẩy (push) lên GitHub, Vercel sẽ **tự động deploy lại** — không cần làm gì thêm
 
+## Cập nhật mới: tự động tách bài test theo từng tháng
+
+Từ giờ, hệ thống **tự động coi mỗi tháng là một đợt thi riêng** — không cần bạn phải tay xoá dữ
+liệu mỗi tháng nữa:
+
+- Ai đã làm bài trong tháng này, tháng **sau** vẫn làm lại được bình thường (không bị báo trùng
+  tên) — hệ thống chỉ chặn trùng tên **trong cùng 1 tháng**
+- Trang **Báo cáo** mặc định chỉ hiện kết quả của **tháng hiện tại**, có ô chọn ở đầu trang để
+  xem lại báo cáo của các tháng trước, hoặc chọn "Tất cả các tháng" để xem gộp toàn bộ
+- Dữ liệu các tháng cũ **không bị xoá** — vẫn nằm nguyên trong database để đối chiếu khi cần,
+  chỉ là không hiện mặc định nữa thôi
+
+### Bắt buộc phải chạy SQL sau khi cập nhật code
+
+1. Vào Supabase → **SQL Editor** → **New query** (tab trống, không dùng lại tab cũ)
+2. Dán và chạy toàn bộ nội dung file `supabase-schema.sql` **mới** (đã có thêm cột `period`, và
+   tự động gán tháng cho các lượt làm bài cũ dựa theo thời điểm nộp bài)
+
+Sau bước này, các lượt làm bài **cũ** sẽ được tự động xếp vào đúng tháng chúng đã diễn ra (dựa
+theo thời điểm nộp bài), và các lượt **mới** sẽ tự gắn đúng tháng hiện tại khi nộp bài.
+
 ## Cập nhật mới: thêm cột "Thời gian làm bài" + hướng dẫn xoá dữ liệu cũ
 
 ### 1. Báo cáo giờ có đủ các trường bạn cần
