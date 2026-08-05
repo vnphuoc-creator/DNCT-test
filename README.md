@@ -113,6 +113,22 @@ quiz-app/
 - **Đổi chữ trên trang chủ**: sửa file `app/page.js`
 - Mỗi lần sửa code và đẩy (push) lên GitHub, Vercel sẽ **tự động deploy lại** — không cần làm gì thêm
 
+## Cập nhật mới: trang Dashboard trực quan
+
+Thêm 1 trang **Dashboard** (`/dashboard`) hiện biểu đồ trực quan, không cần cấu hình gì thêm — dữ
+liệu lấy thẳng từ Supabase như trang Báo cáo. Gồm:
+
+- Các số liệu tổng quan (lượt làm bài, điểm TB, cao/thấp nhất, thời gian làm bài trung bình)
+- Biểu đồ **phân bố điểm số** (bao nhiêu người đạt mỗi khoảng điểm)
+- Biểu đồ **xu hướng điểm theo từng lượt nộp bài**
+- Biểu đồ tròn **tỷ lệ đạt / chưa đạt** (ngưỡng 50%, có thể nhờ mình đổi ngưỡng nếu cần)
+- Biểu đồ **top 10 câu hỏi hay bị sai nhất**
+
+Cũng có ô chọn tháng như trang Báo cáo, và cũng được bảo vệ bằng mật khẩu admin (không cần cấu
+hình thêm gì — dùng chung `ADMIN_PASSWORD` đã có).
+
+Truy cập qua link **"Xem dashboard"** ở trang chủ hoặc trang Báo cáo.
+
 ## Cập nhật mới: tự động tách bài test theo từng tháng
 
 Từ giờ, hệ thống **tự động coi mỗi tháng là một đợt thi riêng** — không cần bạn phải tay xoá dữ

@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "../../lib/supabaseClient";
+import { getCurrentPeriod, formatPeriodLabel } from "../../lib/period";
 
 function formatDuration(seconds) {
   if (seconds === null || seconds === undefined) return "—";
@@ -13,7 +14,8 @@ function formatDuration(seconds) {
 export default function ReportPage() {
   const [status, setStatus] = useState("loading"); // loading | error | ready
   const [errorMsg, setErrorMsg] = useState("");
-  const [results, setResults] = useState([]);
+  const [allResults, setAllResults] = useState([]);
+  const [selectedPeriod, setSelectedPeriod] = useState(getCurrentPeriod());
   const [expandedId, setExpandedId] = useState(null);
 
   useEffect(() => {
@@ -25,16 +27,28 @@ export default function ReportPage() {
       .from("quiz_results")
       .select("*")
       .order("created_at", { ascending: false })
-      .limit(2000);
+      .limit(5000);
 
     if (error) {
       setErrorMsg(error.message);
       setStatus("error");
       return;
     }
-    setResults(data || []);
+    setAllResults(data || []);
     setStatus("ready");
   }
+
+  // Danh sách các tháng đã từng có người làm bài, để hiện trong bộ lọc
+  const availablePeriods = useMemo(() => {
+    const set = new Set(allResults.map((r) => r.period || "khong-ro"));
+    return Array.from(set).sort().reverse();
+  }, [allResults]);
+
+  // Chỉ lấy kết quả của tháng đang chọn (hoặc tất cả nếu chọn "Tất cả")
+  const results = useMemo(() => {
+    if (selectedPeriod === "all") return allResults;
+    return allResults.filter((r) => (r.period || "khong-ro") === selectedPeriod);
+  }, [allResults, selectedPeriod]);
 
   // ---- Tính toán số liệu tổng quan ----
   const stats = useMemo(() => {
@@ -158,8 +172,8 @@ export default function ReportPage() {
     XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(hardestSheetData), "Cau hoi hay sai");
     XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(detailSheetData), "Chi tiet");
 
-    const dateStr = new Date().toISOString().slice(0, 10);
-    XLSX.writeFile(wb, `bao-cao-bai-test-${dateStr}.xlsx`);
+    const periodLabel = selectedPeriod === "all" ? "tat-ca" : selectedPeriod;
+    XLSX.writeFile(wb, `bao-cao-bai-test-${periodLabel}.xlsx`);
   }
 
   if (status === "loading") {
@@ -179,12 +193,39 @@ export default function ReportPage() {
     );
   }
 
+  const periodSelector = (
+    <div style={{ marginBottom: 20 }}>
+      <label htmlFor="period-select" style={{ display: "block", marginBottom: 6, fontSize: 13, color: "var(--text-dim)" }}>
+        Xem báo cáo của
+      </label>
+      <select
+        id="period-select"
+        className="field"
+        style={{ maxWidth: 260 }}
+        value={selectedPeriod}
+        onChange={(e) => setSelectedPeriod(e.target.value)}
+      >
+        <option value={getCurrentPeriod()}>{formatPeriodLabel(getCurrentPeriod())} (tháng hiện tại)</option>
+        {availablePeriods
+          .filter((p) => p !== getCurrentPeriod())
+          .map((p) => (
+            <option key={p} value={p}>
+              {p === "khong-ro" ? "Không rõ tháng (dữ liệu cũ)" : formatPeriodLabel(p)}
+            </option>
+          ))}
+        <option value="all">Tất cả các tháng</option>
+      </select>
+    </div>
+  );
+
   if (!stats) {
     return (
       <div className="card">
         <div className="eyebrow">Báo cáo</div>
         <h2>Chưa có dữ liệu</h2>
-        <p>Chưa có ai làm bài cả, quay lại đây sau khi có người hoàn thành bài test.</p>
+        {periodSelector}
+        <p>Chưa có ai làm bài trong khoảng này cả. Thử chọn tháng khác ở trên, hoặc quay lại
+        sau khi có người hoàn thành bài test.</p>
         <a href="/">← Quay lại trang chủ</a>
       </div>
     );
@@ -194,6 +235,7 @@ export default function ReportPage() {
     <div className="card" style={{ maxWidth: 1000 }}>
       <div className="eyebrow">Báo cáo</div>
       <h2>Kết quả tổng hợp</h2>
+      {periodSelector}
 
       <div
         style={{
@@ -323,6 +365,9 @@ export default function ReportPage() {
       <div className="link-row">
         <a href="/">
           <button className="btn-secondary">← Trang chủ</button>
+        </a>
+        <a href="/dashboard">
+          <button className="btn-primary">Xem dashboard</button>
         </a>
         <button className="btn-secondary" onClick={handleLogout}>
           Đăng xuất

@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "../lib/supabaseClient";
 import { getQuizWindowStatus, formatVNDateTime } from "../lib/quizWindow";
+import { getCurrentPeriod, formatPeriodLabel } from "../lib/period";
 
 export default function HomePage() {
   const [name, setName] = useState("");
@@ -40,6 +41,7 @@ export default function HomePage() {
       .from("quiz_results")
       .select("id, score, total, created_at")
       .ilike("user_name", trimmed)
+      .eq("period", getCurrentPeriod())
       .order("created_at", { ascending: false })
       .limit(1);
 
@@ -53,7 +55,7 @@ export default function HomePage() {
     if (data && data.length > 0) {
       const prev = data[0];
       setError(
-        `Tên "${trimmed}" đã làm bài rồi (đạt ${prev.score}/${prev.total} điểm). Mỗi người chỉ được làm 1 lần. Nếu đây là nhầm lẫn, liên hệ người quản lý bài test.`
+        `Tên "${trimmed}" đã làm bài của ${formatPeriodLabel(getCurrentPeriod())} rồi (đạt ${prev.score}/${prev.total} điểm). Mỗi người chỉ được làm 1 lần mỗi tháng. Nếu đây là nhầm lẫn, liên hệ người quản lý bài test.`
       );
       return;
     }
@@ -69,7 +71,7 @@ export default function HomePage() {
       <p>
         Nhập tên để bắt đầu. Mỗi lượt sẽ có 25 câu hỏi ngẫu nhiên, hệ thống
         tự chấm điểm và lưu lại kết quả của bạn. Mỗi người chỉ được làm{" "}
-        <strong>1 lần duy nhất</strong>.
+        <strong>1 lần mỗi tháng</strong>.
       </p>
 
       {!windowStatus.open && (
@@ -104,6 +106,7 @@ export default function HomePage() {
       <div className="link-row">
         <a href="/results">Xem lịch sử kết quả →</a>
         <a href="/report">Xem báo cáo tổng hợp →</a>
+        <a href="/dashboard">Xem dashboard →</a>
       </div>
     </div>
   );

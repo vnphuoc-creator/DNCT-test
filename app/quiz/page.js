@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { supabase } from "../../lib/supabaseClient";
 import { getQuizWindowStatus, formatVNDateTime } from "../../lib/quizWindow";
+import { getCurrentPeriod, formatPeriodLabel } from "../../lib/period";
 
 // Số câu hỏi ngẫu nhiên cho mỗi lượt làm bài (đổi số này nếu muốn nhiều/ít hơn)
 const QUESTIONS_PER_QUIZ = 25;
@@ -55,6 +56,7 @@ export default function QuizPage() {
       .from("quiz_results")
       .select("id, score, total")
       .ilike("user_name", nameToCheck)
+      .eq("period", getCurrentPeriod())
       .limit(1);
 
     if (error) {
@@ -64,7 +66,7 @@ export default function QuizPage() {
     }
     if (data && data.length > 0) {
       setErrorMsg(
-        `Bạn đã làm bài rồi (đạt ${data[0].score}/${data[0].total} điểm). Mỗi người chỉ được làm 1 lần.`
+        `Bạn đã làm bài của ${formatPeriodLabel(getCurrentPeriod())} rồi (đạt ${data[0].score}/${data[0].total} điểm). Mỗi người chỉ được làm 1 lần mỗi tháng.`
       );
       setStatus("error");
       return;
@@ -133,6 +135,7 @@ export default function QuizPage() {
       total: questions.length,
       answers: userAnswers,
       duration_seconds: durationSeconds,
+      period: getCurrentPeriod(),
     });
     setSaving(false);
     if (error) {
