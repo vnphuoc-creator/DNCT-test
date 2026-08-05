@@ -50,6 +50,7 @@ export default function ResultsPage() {
           <thead>
             <tr>
               <th>Tên</th>
+              <th>Email</th>
               <th>Điểm</th>
               <th>Thời gian</th>
             </tr>
@@ -58,6 +59,7 @@ export default function ResultsPage() {
             {results.map((r) => (
               <tr key={r.id}>
                 <td>{r.user_name}</td>
+                <td>{r.email || "—"}</td>
                 <td>
                   {r.score}/{r.total}
                 </td>

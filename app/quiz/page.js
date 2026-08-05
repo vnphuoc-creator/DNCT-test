@@ -19,6 +19,7 @@ function shuffle(array) {
 
 export default function QuizPage() {
   const [userName, setUserName] = useState("");
+  const [userEmail, setUserEmail] = useState("");
   const [status, setStatus] = useState("loading"); // loading | error | playing | finished
   const [errorMsg, setErrorMsg] = useState("");
   const [questions, setQuestions] = useState([]);
@@ -31,7 +32,8 @@ export default function QuizPage() {
 
   useEffect(() => {
     const savedName = localStorage.getItem("quiz_user_name");
-    if (!savedName) {
+    const savedEmail = localStorage.getItem("quiz_user_email");
+    if (!savedName || !savedEmail) {
       window.location.href = "/";
       return;
     }
@@ -48,14 +50,15 @@ export default function QuizPage() {
     }
 
     setUserName(savedName);
-    checkAlreadyTakenThenLoad(savedName);
+    setUserEmail(savedEmail);
+    checkAlreadyTakenThenLoad(savedEmail);
   }, []);
 
-  async function checkAlreadyTakenThenLoad(nameToCheck) {
+  async function checkAlreadyTakenThenLoad(emailToCheck) {
     const { data, error } = await supabase
       .from("quiz_results")
       .select("id, score, total")
-      .ilike("user_name", nameToCheck)
+      .ilike("email", emailToCheck)
       .eq("period", getCurrentPeriod())
       .limit(1);
 
@@ -66,7 +69,7 @@ export default function QuizPage() {
     }
     if (data && data.length > 0) {
       setErrorMsg(
-        `Bạn đã làm bài của ${formatPeriodLabel(getCurrentPeriod())} rồi (đạt ${data[0].score}/${data[0].total} điểm). Mỗi người chỉ được làm 1 lần mỗi tháng.`
+        `Bạn đã làm bài của ${formatPeriodLabel(getCurrentPeriod())} rồi (đạt ${data[0].score}/${data[0].total} điểm). Mỗi email chỉ được làm 1 lần mỗi tháng.`
       );
       setStatus("error");
       return;
@@ -131,6 +134,7 @@ export default function QuizPage() {
       : null;
     const { error } = await supabase.from("quiz_results").insert({
       user_name: userName,
+      email: userEmail,
       score,
       total: questions.length,
       answers: userAnswers,
@@ -217,6 +221,24 @@ export default function QuizPage() {
           </button>
         );
       })}
+
+      {selected !== null && q.explanation && (
+        <div
+          style={{
+            background: "#0d1620",
+            border: "1px solid var(--panel-border)",
+            borderRadius: 10,
+            padding: "12px 14px",
+            marginTop: 4,
+            marginBottom: 16,
+            fontSize: 14,
+            color: "var(--text-dim)",
+          }}
+        >
+          <strong style={{ color: "var(--accent)" }}>Giải thích: </strong>
+          {q.explanation}
+        </div>
+      )}
 
       <button
         className="btn-primary"

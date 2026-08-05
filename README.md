@@ -113,6 +113,94 @@ quiz-app/
 - **Đổi chữ trên trang chủ**: sửa file `app/page.js`
 - Mỗi lần sửa code và đẩy (push) lên GitHub, Vercel sẽ **tự động deploy lại** — không cần làm gì thêm
 
+## Cập nhật mới: Ôn tập + Giải thích đáp án + Quản lý câu hỏi qua web
+
+### Bắt buộc: chạy 1 file SQL trước
+
+1. Vào Supabase → **SQL Editor** → **New query** (tab trống, mới)
+2. Copy toàn bộ nội dung file **`migration-on-tap-quan-ly.sql`** → dán → **Run**
+
+File này thêm cột "giải thích đáp án" và mở quyền cho trang quản lý câu hỏi có thể thêm/sửa/xoá.
+
+### 1. Chế độ Ôn tập (`/practice`, link "Ôn tập trước khi thi" ở trang chủ)
+
+- **Ai cũng dùng được**, không cần mật khẩu, làm bao nhiêu lần tuỳ thích
+- Chọn chủ đề (hoặc "Tất cả") và số câu muốn ôn (10 / 25 / 50 / tất cả)
+- Chọn đáp án là thấy đúng/sai + giải thích ngay (nếu câu đó có giải thích)
+- **Không lưu vào báo cáo**, không tính vào giới hạn "1 lần/tháng" của bài kiểm tra chính thức
+
+### 2. Giải thích đáp án
+
+Thêm giải thích cho từng câu hỏi qua trang **Quản lý câu hỏi** (xem mục 3). Giải thích sẽ tự
+hiện ra ngay dưới đáp án — cả trong bài kiểm tra chính thức lẫn khi ôn tập — ngay sau khi người
+làm bài chọn 1 đáp án. Câu nào chưa có giải thích thì cứ để trống, không bắt buộc.
+
+### 3. Quản lý câu hỏi qua web (`/admin-questions`, link "Quản lý câu hỏi" ở trang chủ)
+
+Từ giờ **không cần vào Supabase gõ SQL nữa** để sửa ngân hàng câu hỏi:
+
+- Xem danh sách toàn bộ câu hỏi, tìm theo nội dung hoặc chủ đề
+- **Thêm câu hỏi mới**: nhập nội dung, các đáp án (tối thiểu 2, tối đa 6), bấm chọn đáp án đúng,
+  thêm chủ đề và giải thích nếu muốn
+- **Sửa** câu hỏi có sẵn — bấm "Sửa" ở dòng tương ứng
+- **Xoá** câu hỏi — có hỏi xác nhận trước khi xoá, xoá xong không khôi phục lại được
+
+Trang này cũng cần mật khẩu admin giống trang Báo cáo/Dashboard (dùng chung `ADMIN_PASSWORD` đã
+có, không cần cấu hình thêm).
+
+**Lưu ý bảo mật nhỏ**: quyền ghi/sửa/xoá câu hỏi ở tầng database hiện đang mở cho bất kỳ ai gọi
+đúng API của Supabase (không chỉ riêng trang web này), tương tự cách quyền đọc câu hỏi đã hoạt
+động từ đầu. Trang trên web được khoá bằng mật khẩu, nhưng đây không phải bảo mật ở mức "không
+thể phá được" — phù hợp cho một công cụ đào tạo nội bộ, không phù hợp nếu dữ liệu cực kỳ nhạy
+cảm. Nói mình biết nếu bạn cần nâng cấp lên mức bảo mật chặt chẽ hơn.
+
+## Cập nhật mới: Ôn tập + Giải thích đáp án + Quản lý câu hỏi trên web + Email làm định danh
+
+### Bắt buộc: chạy SQL trước
+
+1. Vào Supabase → **SQL Editor** → **New query** (tab trống mới)
+2. Dán và chạy toàn bộ nội dung file **`migration-on-tap-quan-ly.sql`** — file này thêm cột
+   `explanation` (giải thích đáp án) và mở quyền cho trang quản lý câu hỏi hoạt động
+3. Mở tab mới khác, chạy tiếp dòng sau để thêm cột `email`:
+   ```sql
+   alter table quiz_results add column if not exists email text;
+   ```
+
+### 1. Chế độ Ôn tập (`/practice`)
+
+Làm không giới hạn số lần, không tính vào báo cáo, không cần điền tên/email. Có thể chọn ôn theo
+từng chủ đề riêng hoặc tất cả, chọn số câu (10/25/50/tất cả). Sau mỗi câu, hiện ngay đáp án đúng
+và phần giải thích (nếu bạn đã nhập). Truy cập qua link "Ôn tập trước khi thi" ở trang chủ.
+
+### 2. Giải thích đáp án
+
+Mỗi câu hỏi giờ có thêm 1 trường "Giải thích" (không bắt buộc). Nhập qua trang **Quản lý câu
+hỏi** (xem mục 3). Nếu để trống, hệ thống chỉ hiện đúng/sai như trước, không hiện gì thêm.
+
+### 3. Quản lý câu hỏi ngay trên web (`/admin-questions`)
+
+Không cần vào Supabase gõ SQL nữa — thêm/sửa/xoá câu hỏi ngay trên web, có ô tìm kiếm theo nội
+dung hoặc chủ đề. Trang này được bảo vệ bằng mật khẩu admin giống trang Báo cáo/Dashboard.
+
+**Lưu ý về bảo mật (đọc kỹ)**: trang này được khoá ở tầng giao diện web (phải đăng nhập mật khẩu
+mới thấy trang), nhưng bản thân "chìa khoá" kết nối tới Supabase (`NEXT_PUBLIC_SUPABASE_ANON_KEY`)
+vẫn là khoá công khai, ai cũng có thể lấy được từ trình duyệt. Vì đã mở quyền ghi cho bảng
+`questions` để tính năng này hoạt động, về lý thuyết một người có kỹ thuật (mở Console trình
+duyệt) vẫn có thể chỉnh sửa được ngân hàng câu hỏi mà không cần qua trang đăng nhập. Với một
+công cụ đào tạo nội bộ, rủi ro này ở mức thấp (không có dữ liệu cá nhân/tài chính nhạy cảm bị lộ,
+chỉ là nội dung câu hỏi). Nếu sau này bạn cần mức bảo mật cao hơn (ví dụ khoá hẳn ở tầng server),
+nói mình biết để nâng cấp thêm.
+
+### 4. Email làm định danh (thay vì chỉ gõ tên)
+
+Trang chủ giờ yêu cầu nhập thêm **email công ty**, dùng để kiểm tra trùng thay vì chỉ dựa vào tên
+gõ tay (khó gõ sai/trùng hơn tên). Báo cáo, lịch sử, và file Excel xuất ra đều có thêm cột Email.
+
+**Lưu ý cần biết**: đây **không phải** đăng nhập thật (không gửi email xác minh, không mật khẩu
+riêng cho từng người) — chỉ là dùng email làm định danh đáng tin hơn tên. Ai đó vẫn có thể gõ
+email của người khác nếu cố tình. Nếu cần xác thực chặt hơn (gửi mã OTP qua email trước khi cho
+làm bài), đây là một bước nâng cấp lớn hơn, nói mình biết nếu bạn muốn làm.
+
 ## Cập nhật mới: trang Dashboard trực quan
 
 Thêm 1 trang **Dashboard** (`/dashboard`) hiện biểu đồ trực quan, không cần cấu hình gì thêm — dữ

@@ -7,6 +7,7 @@ create table if not exists questions (
   options jsonb not null,        -- ví dụ: ["Hà Nội", "Huế", "TP.HCM", "Đà Nẵng"]
   correct_index int not null,    -- vị trí đáp án đúng trong mảng options, bắt đầu từ 0
   category text,                 -- chủ đề/hệ thống của câu hỏi, dùng để lọc báo cáo
+  explanation text,              -- giải thích vì sao đáp án đó đúng (không bắt buộc)
   created_at timestamptz default now()
 );
 
@@ -25,6 +26,7 @@ create table if not exists quiz_results (
 -- Nếu bảng quiz_results đã tồn tại từ trước (chưa có các cột này), thêm vào:
 alter table quiz_results add column if not exists duration_seconds int;
 alter table quiz_results add column if not exists period text;
+alter table quiz_results add column if not exists email text;
 
 -- Gán "tháng" cho các lượt làm bài cũ đã có sẵn (dựa theo thời điểm nộp bài),
 -- để không bị mất dấu khi tra cứu theo tháng.
@@ -37,6 +39,16 @@ alter table quiz_results enable row level security;
 -- Cho phép ai cũng ĐỌC được câu hỏi (cần thiết để web hiển thị đề)
 create policy "Cho phép đọc câu hỏi" on questions
   for select using (true);
+
+-- Cho phép trang quản lý câu hỏi (đã bảo vệ bằng mật khẩu ở tầng ứng dụng) ghi/sửa/xoá câu hỏi
+create policy "Cho phép ghi câu hỏi" on questions
+  for insert with check (true);
+
+create policy "Cho phép sửa câu hỏi" on questions
+  for update using (true) with check (true);
+
+create policy "Cho phép xoá câu hỏi" on questions
+  for delete using (true);
 
 -- Cho phép ai cũng GHI kết quả (nộp bài)
 create policy "Cho phép ghi kết quả" on quiz_results
