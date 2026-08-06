@@ -347,7 +347,7 @@ export default function ReportPage() {
                                 Trả lời: {a.options?.[a.selected_index]} —{" "}
                                 <span
                                   style={{
-                                    color: a.is_correct ? "var(--accent)" : "var(--wrong)",
+                                    color: a.is_correct ? "var(--ok)" : "var(--danger)",
                                   }}
                                 >
                                   {a.is_correct
@@ -394,7 +394,7 @@ function StatBox({ label, value }) {
         textAlign: "center",
       }}
     >
-      <div style={{ fontSize: 22, fontFamily: "var(--font-display)", color: "var(--accent)" }}>
+      <div style={{ fontSize: 22, fontFamily: "var(--font-mono)", color: "var(--amber)" }}>
         {value}
       </div>
       <div style={{ fontSize: 11, color: "var(--text-dim)", marginTop: 4, textTransform: "uppercase" }}>

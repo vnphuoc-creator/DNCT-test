@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "../../lib/supabaseClient";
+import ScoreGauge from "../components/ScoreGauge";
 
 function shuffle(array) {
   const copy = [...array];
@@ -165,10 +166,8 @@ export default function PracticePage() {
       <div className="card">
         <div className="eyebrow">Ôn tập</div>
         <h2>Ôn tập xong!</h2>
-        <div className="result-score">
-          {score}/{questions.length}
-        </div>
-        <p>Đúng {percent}% — kết quả này không được lưu lại, chỉ để bạn tự luyện tập.</p>
+        <ScoreGauge percent={percent} label={`${score}/${questions.length} CÂU ĐÚNG`} />
+        <p>Kết quả này không được lưu lại, chỉ để bạn tự luyện tập.</p>
         <div className="link-row">
           <button className="btn-secondary" onClick={() => setStatus("setup")}>
             Ôn tập tiếp
@@ -222,7 +221,7 @@ export default function PracticePage() {
             color: "var(--text-dim)",
           }}
         >
-          <strong style={{ color: "var(--accent)" }}>Giải thích: </strong>
+          <strong style={{ color: "var(--amber)" }}>Giải thích: </strong>
           {q.explanation}
         </div>
       )}

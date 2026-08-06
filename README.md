@@ -154,6 +154,58 @@ có, không cần cấu hình thêm).
 thể phá được" — phù hợp cho một công cụ đào tạo nội bộ, không phù hợp nếu dữ liệu cực kỳ nhạy
 cảm. Nói mình biết nếu bạn cần nâng cấp lên mức bảo mật chặt chẽ hơn.
 
+## Cập nhật mới: giao diện mới + danh sách người dùng đăng ký sẵn
+
+### 1. Giao diện thiết kế lại
+
+Đổi hẳn phong cách hình ảnh — từ "nền đen viền xanh lá" chung chung sang **bảng điều khiển kỹ
+thuật** (màu hổ phách/amber như đèn báo thiết bị công nghiệp, chữ số kiểu đồng hồ đo, lưới kỹ
+thuật mờ ở nền), phù hợp hơn với nội dung đào tạo kỹ thuật vận hành (trạm bơm, UPS, hạ thế...).
+Điểm nhấn là **đồng hồ đo điểm số dạng vòng tròn** ở màn hình kết quả, thay cho con số đơn giản
+trước đây. Không cần cấu hình gì thêm, đã tự áp dụng cho toàn bộ các trang.
+
+### 2. Đăng nhập bằng cách chọn từ danh sách đã đăng ký
+
+Trang chủ giờ không cho gõ tên/email tự do nữa — người làm bài **gõ để tìm và chọn đúng tên
+mình** trong danh sách đã đăng ký sẵn (giống ô tìm kiếm autocomplete). Việc này chặt chẽ hơn hẳn
+so với gõ tự do: không ai gõ sai tên/email của mình được, và không ai làm bài được nếu chưa có
+tên trong danh sách.
+
+**Quản lý danh sách này ở đâu?** Vào link **"Quản lý người dùng"** ở trang chủ (cần mật khẩu
+admin) — thêm/sửa/xoá người ngay trên web, không cần SQL. Đã import sẵn 24 người từ file
+`danh_sách_tên.xlsx` bạn gửi.
+
+### Bắt buộc: chạy SQL để tạo danh sách người dùng
+
+1. Vào Supabase → **SQL Editor** → **New query** (tab trống mới)
+2. Dán và chạy toàn bộ nội dung file **`import-danh-sach-nguoi-dung.sql`** — tạo bảng
+   `allowed_users` và import sẵn 24 người
+
+## Đã xong: bộ câu hỏi "BÀI TEST KIỂM TRA 5S" + gộp chủ đề trùng lặp
+
+### 1. Import 22 câu hỏi 5S
+
+Đọc lại kỹ file Word, phát hiện đáp án đúng được đánh dấu bằng **màu chữ đỏ** (không phải tô đậm
+như lần kiểm tra đầu) — nhờ vậy trích được đủ đáp án cho toàn bộ câu hỏi, không cần đoán:
+
+1. Vào Supabase → **SQL Editor** → **New query** (tab trống mới)
+2. Dán và chạy toàn bộ nội dung file **`import-cau-hoi-5s.sql`**
+
+22 câu này được gắn `category = '5S'`, nên sẽ tự xuất hiện thành 1 mục riêng trong bộ lọc chủ đề
+ở trang **Ôn tập**, không lẫn với các chủ đề kỹ thuật khác.
+
+*(Lưu ý: đếm được 22 câu chứ không phải 20 như ước tính ban đầu — có 3 câu trong file gốc có tới
+5 lựa chọn A-E thay vì 4, tất cả đều là câu hỏi thật, không trùng lặp.)*
+
+### 2. Gộp các chủ đề trùng lặp/liên quan
+
+1. Tab mới khác → dán và chạy toàn bộ nội dung file **`gop-chu-de-trung-lap.sql`**
+
+File này gộp:
+- `"UPS"` và `"Hệ UPS"` → còn lại 1 tên `"Hệ UPS"`
+- 3 chủ đề liên quan tới XLNT (`Hệ thống thiết bị XLNT`, `Hệ bơm không sử dụng biến tần...`, `Hệ
+  thống bơm có sử dụng biến tần...`) → gộp chung thành `"Hệ thống XLNT"`
+
 ## Cập nhật mới: Ôn tập + Giải thích đáp án + Quản lý câu hỏi trên web + Email làm định danh
 
 ### Bắt buộc: chạy SQL trước

@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { supabase } from "../../lib/supabaseClient";
 import { getQuizWindowStatus, formatVNDateTime } from "../../lib/quizWindow";
 import { getCurrentPeriod, formatPeriodLabel } from "../../lib/period";
+import ScoreGauge from "../components/ScoreGauge";
 
 // Số câu hỏi ngẫu nhiên cho mỗi lượt làm bài (đổi số này nếu muốn nhiều/ít hơn)
 const QUESTIONS_PER_QUIZ = 25;
@@ -174,13 +175,10 @@ export default function QuizPage() {
         <div className="eyebrow">Kết quả</div>
         <h2>Xong rồi, {userName}!</h2>
         {errorMsg && <div className="error-box">{errorMsg}</div>}
-        <div className="result-score">
-          {score}/{questions.length}
-        </div>
-        <p>Bạn đúng {percent}% số câu hỏi.</p>
+        <ScoreGauge percent={percent} label={`${score}/${questions.length} CÂU ĐÚNG`} />
         <div className="link-row">
-          <a href="/quiz">
-            <button className="btn-secondary">Làm lại</button>
+          <a href="/practice">
+            <button className="btn-secondary">Ôn tập thêm</button>
           </a>
           <a href="/results">
             <button className="btn-primary">Xem lịch sử</button>
@@ -235,7 +233,7 @@ export default function QuizPage() {
             color: "var(--text-dim)",
           }}
         >
-          <strong style={{ color: "var(--accent)" }}>Giải thích: </strong>
+          <strong style={{ color: "var(--amber)" }}>Giải thích: </strong>
           {q.explanation}
         </div>
       )}

@@ -13,5 +13,11 @@ export function middleware(request) {
 }
 
 export const config = {
-  matcher: ["/report/:path*", "/results/:path*", "/dashboard/:path*", "/admin-questions/:path*"],
+  matcher: [
+    "/report/:path*",
+    "/results/:path*",
+    "/dashboard/:path*",
+    "/admin-questions/:path*",
+    "/admin-users/:path*",
+  ],
 };

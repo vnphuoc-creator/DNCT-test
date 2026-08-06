@@ -302,7 +302,7 @@ export default function AdminQuestionsPage() {
                   </button>
                   <button
                     className="btn-secondary"
-                    style={{ padding: "6px 10px", fontSize: 13, color: "var(--wrong)" }}
+                    style={{ padding: "6px 10px", fontSize: 13, color: "var(--danger)" }}
                     onClick={() => handleDelete(item)}
                   >
                     Xoá

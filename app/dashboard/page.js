@@ -19,9 +19,10 @@ import {
 import { supabase } from "../../lib/supabaseClient";
 import { getCurrentPeriod, formatPeriodLabel } from "../../lib/period";
 
-const ACCENT = "#3ddc97";
-const WRONG = "#ef6461";
-const DIM = "#93a2b0";
+const ACCENT = "#f5a623";
+const OK = "#45c4b0";
+const WRONG = "#e5484d";
+const DIM = "#8fa0ae";
 
 export default function DashboardPage() {
   const [status, setStatus] = useState("loading");
@@ -263,7 +264,7 @@ export default function DashboardPage() {
                   outerRadius={90}
                   label={(entry) => `${entry.name}: ${entry.value}`}
                 >
-                  <Cell fill={ACCENT} />
+                  <Cell fill={OK} />
                   <Cell fill={WRONG} />
                 </Pie>
                 <Tooltip
@@ -332,7 +333,7 @@ function StatBox({ label, value }) {
         textAlign: "center",
       }}
     >
-      <div style={{ fontSize: 20, fontFamily: "var(--font-display)", color: "var(--accent)" }}>
+      <div style={{ fontSize: 20, fontFamily: "var(--font-mono)", color: "var(--amber)" }}>
         {value}
       </div>
       <div style={{ fontSize: 11, color: "var(--text-dim)", marginTop: 4, textTransform: "uppercase" }}>
