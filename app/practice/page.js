@@ -195,6 +195,14 @@ export default function PracticePage() {
       </div>
       <h2>{q.question_text}</h2>
 
+      {q.image_url && (
+        <img
+          src={q.image_url}
+          alt="Ảnh minh hoạ câu hỏi"
+          className="question-image"
+        />
+      )}
+
       {q.options.map((opt, i) => {
         let className = "option";
         if (selected !== null) {

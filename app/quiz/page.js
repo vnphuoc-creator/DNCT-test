@@ -18,6 +18,37 @@ function shuffle(array) {
   return copy;
 }
 
+// Bốc câu hỏi CHIA ĐỀU theo từng chủ đề (category), thay vì random thuần —
+// tránh việc hệ nào có nhiều câu trong kho sẽ chiếm phần lớn bài test.
+// Cách làm: trộn ngẫu nhiên câu hỏi trong từng chủ đề, rồi lấy lần lượt
+// "vòng tròn" mỗi chủ đề 1 câu cho tới khi đủ số lượng cần thiết.
+function pickEvenlyAcrossCategories(allQuestions, count) {
+  const byCategory = {};
+  for (const q of allQuestions) {
+    const key = q.category || "Khác";
+    if (!byCategory[key]) byCategory[key] = [];
+    byCategory[key].push(q);
+  }
+  const categoryKeys = shuffle(Object.keys(byCategory));
+  const shuffledGroups = categoryKeys.map((key) => shuffle(byCategory[key]));
+
+  const picked = [];
+  let round = 0;
+  while (picked.length < count) {
+    let addedThisRound = false;
+    for (const group of shuffledGroups) {
+      if (picked.length >= count) break;
+      if (group[round]) {
+        picked.push(group[round]);
+        addedThisRound = true;
+      }
+    }
+    if (!addedThisRound) break; // hết sạch câu hỏi ở mọi chủ đề
+    round += 1;
+  }
+  return shuffle(picked); // trộn lại thứ tự cuối cùng để không lộ theo nhóm
+}
+
 export default function QuizPage() {
   const [userName, setUserName] = useState("");
   const [userEmail, setUserEmail] = useState("");
@@ -93,7 +124,7 @@ export default function QuizPage() {
       setStatus("error");
       return;
     }
-    setQuestions(shuffle(data).slice(0, QUESTIONS_PER_QUIZ));
+    setQuestions(pickEvenlyAcrossCategories(data, QUESTIONS_PER_QUIZ));
     startTimeRef.current = Date.now();
     setStatus("playing");
   }
@@ -202,6 +233,14 @@ export default function QuizPage() {
         Câu {current + 1}/{questions.length}
       </div>
       <h2>{q.question_text}</h2>
+
+      {q.image_url && (
+        <img
+          src={q.image_url}
+          alt="Ảnh minh hoạ câu hỏi"
+          className="question-image"
+        />
+      )}
 
       {q.options.map((opt, i) => {
         let className = "option";

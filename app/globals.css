@@ -347,6 +347,18 @@ button:active {
   font-family: var(--font-mono);
 }
 
+.question-image {
+  display: block;
+  width: 100%;
+  max-height: 320px;
+  object-fit: contain;
+  background: var(--ink);
+  border: 1px solid var(--panel-border);
+  border-radius: 8px;
+  padding: 10px;
+  margin-bottom: 18px;
+}
+
 table {
   width: 100%;
   border-collapse: collapse;

@@ -10,6 +10,7 @@ const emptyForm = {
   correct_index: 0,
   category: "",
   explanation: "",
+  image_url: "",
 };
 
 export default function AdminQuestionsPage() {
@@ -21,6 +22,7 @@ export default function AdminQuestionsPage() {
   const [form, setForm] = useState(emptyForm);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState("");
+  const [uploadingImage, setUploadingImage] = useState(false);
 
   useEffect(() => {
     loadQuestions();
@@ -65,6 +67,7 @@ export default function AdminQuestionsPage() {
       correct_index: item.correct_index,
       category: item.category || "",
       explanation: item.explanation || "",
+      image_url: item.image_url || "",
     });
     setSaveError("");
     setMode("edit");
@@ -88,6 +91,45 @@ export default function AdminQuestionsPage() {
       const correct_index = f.correct_index >= options.length ? 0 : f.correct_index;
       return { ...f, options, correct_index };
     });
+  }
+
+  async function handleImageUpload(e) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith("image/")) {
+      setSaveError("Chỉ chọn được file ảnh (jpg, png, webp...).");
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      setSaveError("Ảnh quá lớn, chọn ảnh dưới 5MB nhé.");
+      return;
+    }
+
+    setUploadingImage(true);
+    setSaveError("");
+
+    const ext = file.name.split(".").pop();
+    const fileName = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
+
+    const { error: uploadError } = await supabase.storage
+      .from("question-images")
+      .upload(fileName, file);
+
+    if (uploadError) {
+      setUploadingImage(false);
+      setSaveError("Tải ảnh lên thất bại: " + uploadError.message);
+      return;
+    }
+
+    const { data: urlData } = supabase.storage.from("question-images").getPublicUrl(fileName);
+
+    setForm((f) => ({ ...f, image_url: urlData.publicUrl }));
+    setUploadingImage(false);
+  }
+
+  function removeImage() {
+    setForm((f) => ({ ...f, image_url: "" }));
   }
 
   function validateForm() {
@@ -116,6 +158,7 @@ export default function AdminQuestionsPage() {
       correct_index: form.correct_index,
       category: form.category.trim() || null,
       explanation: form.explanation.trim() || null,
+      image_url: form.image_url || null,
     };
 
     let error;
@@ -190,6 +233,38 @@ export default function AdminQuestionsPage() {
             placeholder="Ví dụ: Trạm bơm nước cấp"
           />
 
+          <label>Hình ảnh minh hoạ (không bắt buộc)</label>
+          {form.image_url ? (
+            <div style={{ marginBottom: 18 }}>
+              <img
+                src={form.image_url}
+                alt="Ảnh minh hoạ câu hỏi"
+                style={{
+                  maxWidth: "100%",
+                  maxHeight: 220,
+                  borderRadius: 8,
+                  border: "1px solid var(--panel-border)",
+                  display: "block",
+                  marginBottom: 8,
+                }}
+              />
+              <button type="button" className="btn-secondary" onClick={removeImage}>
+                Xoá ảnh
+              </button>
+            </div>
+          ) : (
+            <input
+              className="field"
+              type="file"
+              accept="image/*"
+              onChange={handleImageUpload}
+              disabled={uploadingImage}
+            />
+          )}
+          {uploadingImage && (
+            <p style={{ marginTop: -10, fontSize: 13 }}>Đang tải ảnh lên...</p>
+          )}
+
           <label>Các đáp án (bấm vào nút tròn để chọn đáp án đúng)</label>
           {form.options.map((opt, i) => (
             <div key={i} style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 8 }}>
@@ -242,14 +317,14 @@ export default function AdminQuestionsPage() {
           />
 
           <div className="link-row">
-            <button type="submit" className="btn-primary" disabled={saving}>
+            <button type="submit" className="btn-primary" disabled={saving || uploadingImage}>
               {saving ? "Đang lưu..." : "Lưu câu hỏi"}
             </button>
             <button
               type="button"
               className="btn-secondary"
               onClick={() => setMode("list")}
-              disabled={saving}
+              disabled={saving || uploadingImage}
             >
               Huỷ
             </button>
@@ -282,6 +357,7 @@ export default function AdminQuestionsPage() {
         <table style={{ marginTop: 0 }}>
           <thead>
             <tr>
+              <th></th>
               <th>Câu hỏi</th>
               <th>Chủ đề</th>
               <th></th>
@@ -290,6 +366,15 @@ export default function AdminQuestionsPage() {
           <tbody>
             {filtered.map((item) => (
               <tr key={item.id}>
+                <td style={{ width: 44 }}>
+                  {item.image_url && (
+                    <img
+                      src={item.image_url}
+                      alt=""
+                      style={{ width: 32, height: 32, objectFit: "cover", borderRadius: 4 }}
+                    />
+                  )}
+                </td>
                 <td>{item.question_text}</td>
                 <td style={{ whiteSpace: "nowrap" }}>{item.category || "—"}</td>
                 <td style={{ whiteSpace: "nowrap" }}>
