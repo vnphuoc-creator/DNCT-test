@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { supabase } from "../../lib/supabaseClient";
 import { getQuizWindowStatus, formatVNDateTime } from "../../lib/quizWindow";
 import { getCurrentPeriod, formatPeriodLabel } from "../../lib/period";
+import ScoreGauge from "../components/ScoreGauge";
 
 // Số câu hỏi ngẫu nhiên cho mỗi lượt làm bài (đổi số này nếu muốn nhiều/ít hơn)
 const QUESTIONS_PER_QUIZ = 25;
@@ -17,8 +18,40 @@ function shuffle(array) {
   return copy;
 }
 
+// Bốc câu hỏi CHIA ĐỀU theo từng chủ đề (category), thay vì random thuần —
+// tránh việc hệ nào có nhiều câu trong kho sẽ chiếm phần lớn bài test.
+// Cách làm: trộn ngẫu nhiên câu hỏi trong từng chủ đề, rồi lấy lần lượt
+// "vòng tròn" mỗi chủ đề 1 câu cho tới khi đủ số lượng cần thiết.
+function pickEvenlyAcrossCategories(allQuestions, count) {
+  const byCategory = {};
+  for (const q of allQuestions) {
+    const key = q.category || "Khác";
+    if (!byCategory[key]) byCategory[key] = [];
+    byCategory[key].push(q);
+  }
+  const categoryKeys = shuffle(Object.keys(byCategory));
+  const shuffledGroups = categoryKeys.map((key) => shuffle(byCategory[key]));
+
+  const picked = [];
+  let round = 0;
+  while (picked.length < count) {
+    let addedThisRound = false;
+    for (const group of shuffledGroups) {
+      if (picked.length >= count) break;
+      if (group[round]) {
+        picked.push(group[round]);
+        addedThisRound = true;
+      }
+    }
+    if (!addedThisRound) break; // hết sạch câu hỏi ở mọi chủ đề
+    round += 1;
+  }
+  return shuffle(picked); // trộn lại thứ tự cuối cùng để không lộ theo nhóm
+}
+
 export default function QuizPage() {
   const [userName, setUserName] = useState("");
+  const [userEmail, setUserEmail] = useState("");
   const [status, setStatus] = useState("loading"); // loading | error | playing | finished
   const [errorMsg, setErrorMsg] = useState("");
   const [questions, setQuestions] = useState([]);
@@ -31,7 +64,8 @@ export default function QuizPage() {
 
   useEffect(() => {
     const savedName = localStorage.getItem("quiz_user_name");
-    if (!savedName) {
+    const savedEmail = localStorage.getItem("quiz_user_email");
+    if (!savedName || !savedEmail) {
       window.location.href = "/";
       return;
     }
@@ -48,14 +82,15 @@ export default function QuizPage() {
     }
 
     setUserName(savedName);
-    checkAlreadyTakenThenLoad(savedName);
+    setUserEmail(savedEmail);
+    checkAlreadyTakenThenLoad(savedEmail);
   }, []);
 
-  async function checkAlreadyTakenThenLoad(nameToCheck) {
+  async function checkAlreadyTakenThenLoad(emailToCheck) {
     const { data, error } = await supabase
       .from("quiz_results")
       .select("id, score, total")
-      .ilike("user_name", nameToCheck)
+      .ilike("email", emailToCheck)
       .eq("period", getCurrentPeriod())
       .limit(1);
 
@@ -66,7 +101,7 @@ export default function QuizPage() {
     }
     if (data && data.length > 0) {
       setErrorMsg(
-        `Bạn đã làm bài của ${formatPeriodLabel(getCurrentPeriod())} rồi (đạt ${data[0].score}/${data[0].total} điểm). Mỗi người chỉ được làm 1 lần mỗi tháng.`
+        `Bạn đã làm bài của ${formatPeriodLabel(getCurrentPeriod())} rồi (đạt ${data[0].score}/${data[0].total} điểm). Mỗi email chỉ được làm 1 lần mỗi tháng.`
       );
       setStatus("error");
       return;
@@ -89,7 +124,7 @@ export default function QuizPage() {
       setStatus("error");
       return;
     }
-    setQuestions(shuffle(data).slice(0, QUESTIONS_PER_QUIZ));
+    setQuestions(pickEvenlyAcrossCategories(data, QUESTIONS_PER_QUIZ));
     startTimeRef.current = Date.now();
     setStatus("playing");
   }
@@ -131,6 +166,7 @@ export default function QuizPage() {
       : null;
     const { error } = await supabase.from("quiz_results").insert({
       user_name: userName,
+      email: userEmail,
       score,
       total: questions.length,
       answers: userAnswers,
@@ -170,13 +206,10 @@ export default function QuizPage() {
         <div className="eyebrow">Kết quả</div>
         <h2>Xong rồi, {userName}!</h2>
         {errorMsg && <div className="error-box">{errorMsg}</div>}
-        <div className="result-score">
-          {score}/{questions.length}
-        </div>
-        <p>Bạn đúng {percent}% số câu hỏi.</p>
+        <ScoreGauge percent={percent} label={`${score}/${questions.length} CÂU ĐÚNG`} />
         <div className="link-row">
-          <a href="/quiz">
-            <button className="btn-secondary">Làm lại</button>
+          <a href="/practice">
+            <button className="btn-secondary">Ôn tập thêm</button>
           </a>
           <a href="/results">
             <button className="btn-primary">Xem lịch sử</button>
@@ -201,6 +234,14 @@ export default function QuizPage() {
       </div>
       <h2>{q.question_text}</h2>
 
+      {q.image_url && (
+        <img
+          src={q.image_url}
+          alt="Ảnh minh hoạ câu hỏi"
+          className="question-image"
+        />
+      )}
+
       {q.options.map((opt, i) => {
         let className = "option";
         if (selected !== null) {
@@ -217,6 +258,24 @@ export default function QuizPage() {
           </button>
         );
       })}
+
+      {selected !== null && q.explanation && (
+        <div
+          style={{
+            background: "#0d1620",
+            border: "1px solid var(--panel-border)",
+            borderRadius: 10,
+            padding: "12px 14px",
+            marginTop: 4,
+            marginBottom: 16,
+            fontSize: 14,
+            color: "var(--text-dim)",
+          }}
+        >
+          <strong style={{ color: "var(--amber)" }}>Giải thích: </strong>
+          {q.explanation}
+        </div>
+      )}
 
       <button
         className="btn-primary"

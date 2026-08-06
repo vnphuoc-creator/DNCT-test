@@ -181,6 +181,67 @@ admin) — thêm/sửa/xoá người ngay trên web, không cần SQL. Đã impo
 2. Dán và chạy toàn bộ nội dung file **`import-danh-sach-nguoi-dung.sql`** — tạo bảng
    `allowed_users` và import sẵn 24 người
 
+## Đã xong: thêm ảnh minh hoạ cho câu hỏi + xác nhận thanh tìm kiếm
+
+### 1. Thanh tìm kiếm trong Quản lý câu hỏi
+
+Đã có sẵn từ bản trước (ô "Tìm theo nội dung hoặc chủ đề..." ngay trên danh sách) — tìm theo cả
+nội dung câu hỏi lẫn tên chủ đề cùng lúc. Nếu bạn chưa thấy, có thể đang dùng bản code cũ hơn,
+upload lại bản zip mới nhất này là có.
+
+### 2. Thêm ảnh minh hoạ cho câu hỏi
+
+Giờ có thể gắn ảnh cho từng câu hỏi — ảnh sẽ hiện ra ngay phía trên nội dung câu hỏi khi làm bài
+(cả bài thi chính thức lẫn ôn tập).
+
+**Bắt buộc: chạy SQL trước** để tạo "kho chứa ảnh" trên Supabase:
+
+1. Vào Supabase → **SQL Editor** → **New query** (tab trống mới)
+2. Dán và chạy toàn bộ nội dung file **`them-anh-cau-hoi.sql`**
+
+**Cách thêm ảnh cho 1 câu hỏi**: vào trang **Quản lý câu hỏi** → Sửa (hoặc Thêm câu hỏi mới) →
+mục "Hình ảnh minh hoạ" → bấm chọn file ảnh từ máy (jpg/png/webp, tối đa 5MB) → ảnh tự động tải
+lên và hiện xem trước ngay → bấm **Lưu câu hỏi** là xong. Muốn đổi ảnh khác thì bấm "Xoá ảnh" rồi
+chọn file mới.
+
+**Lưu ý về bảo mật**: giống với việc mở quyền ghi cho bảng câu hỏi trước đây, kho ảnh này cũng
+cho phép tải lên công khai qua khoá `anon key` — về lý thuyết ai có kỹ thuật vẫn có thể tải ảnh
+lạ lên kho này mà không qua trang đăng nhập. Rủi ro thấp với 1 công cụ nội bộ, nhưng nói mình biết
+nếu bạn muốn nâng cấp bảo mật chặt hơn sau này.
+
+## Đã xong: gom lại đúng 9 hệ thống + bốc câu hỏi chia đều
+
+### 1. Gom chủ đề về đúng 9 hệ đang quản lý
+
+File **`phan-loai-lai-9-he-thong.sql`** (chạy file này, **không cần chạy** file
+`gop-chu-de-trung-lap.sql` cũ nữa vì file mới đã bao gồm cả phần đó) sẽ gom toàn bộ câu hỏi về
+đúng 9 hệ: **UPS, Hạ thế, Trung thế, Máy phát, Nước cấp, Nước thải, RO, 5S, Thiết bị vệ sinh**.
+
+Mình đọc kỹ nội dung từng câu hỏi (không chỉ theo tên nhóm cũ) để phân loại chính xác, có vài chỗ
+đáng chú ý:
+- Nhóm "Hoá chất - Pin - mẫu thử" thực chất toàn câu về hoá chất châm cho nước thải → đưa hết vào
+  **Nước thải**, riêng câu "khử khuẩn RO" tách ra **RO**
+- Nhóm "Chất lượng nước thải đầu ra và nước uống RO" bị trộn 2 chủ đề trong 1 tên — mình tách theo
+  đúng nội dung: câu nào nói về nước thải (QCVN 14) → **Nước thải**, câu nào nói về nước uống/TDS/
+  Clo dư → **RO**
+- Nhóm "bơm tiểu cảnh và bơm Liftpit" cũng bị trộn: câu về đài phun nước/bể tam giác → **Nước
+  cấp**, câu về hố Lipit/Lifpit (trạm bơm thoát nước) → **Nước thải**
+
+**Một số chủ đề không thuộc 9 hệ trên** (an toàn điện quầy thuê, chiếu sáng, chống sét...) — mình
+giữ nguyên tên cũ, chưa gộp vào đâu cả, vì bạn có nói còn quản lý thêm hệ khác ngoài 9 hệ đã liệt
+kê. Nếu muốn xử lý tiếp các chủ đề này, nói mình biết.
+
+**Cách chạy**: Supabase → SQL Editor → New query → dán toàn bộ nội dung file
+`phan-loai-lai-9-he-thong.sql` → Run.
+
+### 2. Bốc 25 câu hỏi chia đều theo từng hệ
+
+Trước đây bốc hoàn toàn ngẫu nhiên trong cả kho 357+ câu — hệ nào có nhiều câu (ví dụ UPS có 40
+câu) sẽ dễ chiếm phần lớn bài test, hệ ít câu (ví dụ Máy phát chỉ 8 câu) dễ bị bỏ sót. Giờ đã đổi
+sang cách bốc **chia đều theo từng hệ trước**, sau đó mới trộn ngẫu nhiên trong từng hệ — với 9
+hệ và 25 câu, mỗi hệ sẽ ra khoảng 2-3 câu mỗi lượt, không hệ nào bị lấn át. Không cần cấu hình gì
+thêm, đã tự áp dụng ngay khi bạn upload code mới.
+
 ## Đã xong: bộ câu hỏi "BÀI TEST KIỂM TRA 5S" + gộp chủ đề trùng lặp
 
 ### 1. Import 22 câu hỏi 5S

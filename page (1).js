@@ -102,6 +102,7 @@ export default function ReportPage() {
     const summarySheetData = [
       [
         "Tên người làm bài",
+        "Email",
         "Số câu trả lời đúng",
         "Tổng số câu",
         "Tỉ lệ phần trăm (%)",
@@ -112,6 +113,7 @@ export default function ReportPage() {
         const percent = r.total > 0 ? Math.round((r.score / r.total) * 100) : 0;
         return [
           r.user_name,
+          r.email || "",
           r.score,
           r.total,
           percent,
@@ -131,6 +133,7 @@ export default function ReportPage() {
     const detailSheetData = [
       [
         "Tên",
+        "Email",
         "Điểm",
         "Tổng câu",
         "Tỷ lệ (%)",
@@ -148,11 +151,12 @@ export default function ReportPage() {
       const duration = formatDuration(r.duration_seconds);
       const time = new Date(r.created_at).toLocaleString("vi-VN");
       if (answers.length === 0) {
-        detailSheetData.push([r.user_name, r.score, r.total, percent, duration, time, "", "", "", ""]);
+        detailSheetData.push([r.user_name, r.email || "", r.score, r.total, percent, duration, time, "", "", "", ""]);
       } else {
         for (const a of answers) {
           detailSheetData.push([
             r.user_name,
+            r.email || "",
             r.score,
             r.total,
             percent,
@@ -286,6 +290,7 @@ export default function ReportPage() {
         <thead>
           <tr>
             <th>Tên</th>
+            <th>Email</th>
             <th>Số câu đúng</th>
             <th>Tỉ lệ %</th>
             <th>Thời gian làm bài</th>
@@ -300,6 +305,7 @@ export default function ReportPage() {
               <>
                 <tr key={r.id}>
                   <td>{r.user_name}</td>
+                  <td>{r.email || "—"}</td>
                   <td>
                     {r.score}/{r.total}
                   </td>
@@ -318,7 +324,7 @@ export default function ReportPage() {
                 </tr>
                 {expandedId === r.id && (
                   <tr>
-                    <td colSpan={6} style={{ background: "#0d1620" }}>
+                    <td colSpan={7} style={{ background: "#0d1620" }}>
                       {(r.answers || []).length === 0 ? (
                         <p style={{ margin: "8px 0" }}>
                           Lượt làm bài này chưa lưu chi tiết từng câu (thực hiện trước khi tính
@@ -341,7 +347,7 @@ export default function ReportPage() {
                                 Trả lời: {a.options?.[a.selected_index]} —{" "}
                                 <span
                                   style={{
-                                    color: a.is_correct ? "var(--accent)" : "var(--wrong)",
+                                    color: a.is_correct ? "var(--ok)" : "var(--danger)",
                                   }}
                                 >
                                   {a.is_correct
@@ -366,6 +372,9 @@ export default function ReportPage() {
         <a href="/">
           <button className="btn-secondary">← Trang chủ</button>
         </a>
+        <a href="/dashboard">
+          <button className="btn-primary">Xem dashboard</button>
+        </a>
         <button className="btn-secondary" onClick={handleLogout}>
           Đăng xuất
         </button>
@@ -385,7 +394,7 @@ function StatBox({ label, value }) {
         textAlign: "center",
       }}
     >
-      <div style={{ fontSize: 22, fontFamily: "var(--font-display)", color: "var(--accent)" }}>
+      <div style={{ fontSize: 22, fontFamily: "var(--font-mono)", color: "var(--amber)" }}>
         {value}
       </div>
       <div style={{ fontSize: 11, color: "var(--text-dim)", marginTop: 4, textTransform: "uppercase" }}>
