@@ -181,6 +181,46 @@ admin) — thêm/sửa/xoá người ngay trên web, không cần SQL. Đã impo
 2. Dán và chạy toàn bộ nội dung file **`import-danh-sach-nguoi-dung.sql`** — tạo bảng
    `allowed_users` và import sẵn 24 người
 
+## Đã xong: khoá lịch mở bài test hằng tháng + bộ câu hỏi mới + logo công ty
+
+### 1. Chỉ mở bài test từ ngày 27 hằng tháng tới hết tháng
+
+Trước đây phải tự tay đổi 2 mốc ngày cố định mỗi tháng — giờ chỉ cần đặt **đúng 1 lần**, hệ thống
+tự lặp lại hằng tháng, không cần chỉnh lại nữa:
+
+1. Vào Vercel → project → **Settings** → **Environment Variables**
+2. Thêm biến mới:
+
+   | Key | Value |
+   |---|---|
+   | `NEXT_PUBLIC_QUIZ_OPEN_DAY` | `27` |
+
+3. **Nếu trước đó bạn đã từng thêm `NEXT_PUBLIC_QUIZ_START` hoặc `NEXT_PUBLIC_QUIZ_DEADLINE`, xoá
+   2 biến đó đi** — 2 biến cũ là mốc cố định 1 lần, nếu còn tồn tại sẽ được ưu tiên hơn và làm
+   biến `NEXT_PUBLIC_QUIZ_OPEN_DAY` mới không có tác dụng
+4. **Redeploy** để áp dụng
+
+Từ ngày 27 mỗi tháng, ai vào web cũng làm bài được, đến hết ngày cuối tháng thì tự khoá lại, sang
+ngày 27 tháng sau lại tự mở — không cần bạn thao tác gì thêm.
+
+### 2. Thay hoàn toàn bộ câu hỏi cũ bằng bộ câu hỏi mới (giữ nguyên 5S)
+
+Đọc file **`Bộ_câu_hỏi_DNCT.xlsx`** bạn gửi, trích được **313 câu hỏi** (đúng theo tên các hệ
+thống bạn đã tự chuẩn hoá sẵn trong sheet "Phân hệ" của file — không cần mình đoán/gộp category
+nữa vì bạn đã làm sẵn). Có 1 dòng bị bỏ qua do thiếu đáp án D trong file gốc, giống lỗi gặp lần
+trước ("Quy định đưa máy cắt vào vị trí vận hành").
+
+**Cách chạy**: Supabase → SQL Editor → New query → dán toàn bộ nội dung file
+**`import-bo-cau-hoi-dnct-moi.sql`** → Run. File này **tự động xoá mọi câu hỏi cũ, CHỈ giữ lại
+đúng các câu thuộc chủ đề "5S"**, rồi thêm 313 câu mới vào — chạy 1 lần là đủ, không cần chạy các
+file phân loại/gộp chủ đề trước đó nữa (bộ câu hỏi mới đã có category đúng sẵn).
+
+### 3. Logo công ty trên mọi trang
+
+Logo giờ hiện cố định ở góc trên bên trái mọi trang (dạng thẻ nhãn sáng nổi bật trên nền tối,
+giống nhãn tên thiết bị công nghiệp), bấm vào logo sẽ về lại trang chủ. Không cần cấu hình gì
+thêm, ảnh đã đóng gói sẵn trong code (`public/logo.png`).
+
 ## Đã xong: sửa phân loại còn sót + menu trang chủ gọn gàng hơn
 
 ### 1. Sửa 14 câu máy phát bị gán nhầm "UPS", gộp triệt để XLNT

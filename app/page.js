@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "../lib/supabaseClient";
-import { getQuizWindowStatus, formatVNDateTime } from "../lib/quizWindow";
+import { getQuizWindowStatus, formatWindowMessage } from "../lib/quizWindow";
 import { getCurrentPeriod, formatPeriodLabel } from "../lib/period";
 import {
   BookOpen,
@@ -85,11 +85,7 @@ export default function HomePage() {
 
     const status = getQuizWindowStatus();
     if (!status.open) {
-      setError(
-        status.reason === "not_started"
-          ? `Bài test chưa mở. Vui lòng quay lại sau lúc ${formatVNDateTime(status.start)}.`
-          : `Bài test đã kết thúc lúc ${formatVNDateTime(status.deadline)}, không thể làm bài nữa.`
-      );
+      setError(formatWindowMessage(status));
       return;
     }
 
@@ -133,11 +129,7 @@ export default function HomePage() {
       </p>
 
       {!windowStatus.open && (
-        <div className="error-box">
-          {windowStatus.reason === "not_started"
-            ? `Bài test chưa mở. Sẽ mở lúc ${formatVNDateTime(windowStatus.start)}.`
-            : `Bài test đã kết thúc lúc ${formatVNDateTime(windowStatus.deadline)}.`}
-        </div>
+        <div className="error-box">{formatWindowMessage(windowStatus)}</div>
       )}
 
       <form onSubmit={handleStart}>

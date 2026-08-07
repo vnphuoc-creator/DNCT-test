@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { supabase } from "../../lib/supabaseClient";
-import { getQuizWindowStatus, formatVNDateTime } from "../../lib/quizWindow";
+import { getQuizWindowStatus, formatWindowMessage } from "../../lib/quizWindow";
 import { getCurrentPeriod, formatPeriodLabel } from "../../lib/period";
 import ScoreGauge from "../components/ScoreGauge";
 
@@ -72,11 +72,7 @@ export default function QuizPage() {
 
     const windowStatus = getQuizWindowStatus();
     if (!windowStatus.open) {
-      setErrorMsg(
-        windowStatus.reason === "not_started"
-          ? `Bài test chưa mở. Sẽ mở lúc ${formatVNDateTime(windowStatus.start)}.`
-          : `Bài test đã kết thúc lúc ${formatVNDateTime(windowStatus.deadline)}.`
-      );
+      setErrorMsg(formatWindowMessage(windowStatus));
       setStatus("error");
       return;
     }

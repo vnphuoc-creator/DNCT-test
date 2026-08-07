@@ -17,6 +17,9 @@ export default function RootLayout({ children }) {
         />
       </head>
       <body>
+        <a href="/" className="brand-badge">
+          <img src="/logo.png" alt="Logo công ty" />
+        </a>
         <div className="shell">{children}</div>
       </body>
     </html>
