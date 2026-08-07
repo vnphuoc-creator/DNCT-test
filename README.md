@@ -181,6 +181,26 @@ admin) — thêm/sửa/xoá người ngay trên web, không cần SQL. Đã impo
 2. Dán và chạy toàn bộ nội dung file **`import-danh-sach-nguoi-dung.sql`** — tạo bảng
    `allowed_users` và import sẵn 24 người
 
+## Đã xong: sửa phân loại còn sót + menu trang chủ gọn gàng hơn
+
+### 1. Sửa 14 câu máy phát bị gán nhầm "UPS", gộp triệt để XLNT
+
+Rà lại kỹ hơn, phát hiện **toàn bộ 14 câu hỏi về máy phát điện** (turbo, nạp/xả khí, bôi trơn, làm
+mát, nhiên liệu) bị gán nhầm chủ đề `"UPS"` **ngay từ file Excel gốc** — không phải lỗi ở bước
+gộp trước, mà là dữ liệu gốc đã sai. Đồng thời gộp triệt để mọi biến thể tên còn dính chữ "XLNT"
+về chung 1 mục "Nước thải", phòng trường hợp bước gộp trước chưa chạy hết.
+
+**Cách chạy**: Supabase → SQL Editor → New query → dán toàn bộ nội dung file
+**`sua-loi-phan-loai-bo-sung.sql`** → Run. File này an toàn để chạy bất kể bạn đã chạy các file
+gộp chủ đề trước đó hay chưa.
+
+### 2. Menu trang chủ gọn gàng hơn, có icon
+
+Đổi từ các dòng chữ link liệt kê thành **lưới ô vuông có icon**, tách rõ 2 khu vực: **"Luyện
+tập"** (ai cũng dùng được — Ôn tập) và **"Khu vực quản trị"** (cần mật khẩu — Lịch sử, Báo cáo,
+Dashboard, Quản lý câu hỏi, Quản lý người dùng), giúp người làm bài không bị rối bởi các link quản
+trị không dành cho họ.
+
 ## Đã xong: thêm ảnh minh hoạ cho câu hỏi + xác nhận thanh tìm kiếm
 
 ### 1. Thanh tìm kiếm trong Quản lý câu hỏi

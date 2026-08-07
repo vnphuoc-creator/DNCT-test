@@ -5,6 +5,14 @@ import { useRouter } from "next/navigation";
 import { supabase } from "../lib/supabaseClient";
 import { getQuizWindowStatus, formatVNDateTime } from "../lib/quizWindow";
 import { getCurrentPeriod, formatPeriodLabel } from "../lib/period";
+import {
+  BookOpen,
+  History,
+  ClipboardList,
+  LayoutDashboard,
+  ListChecks,
+  Users,
+} from "lucide-react";
 
 export default function HomePage() {
   const [allUsers, setAllUsers] = useState([]);
@@ -115,7 +123,7 @@ export default function HomePage() {
   }
 
   return (
-    <div className="card">
+    <div className="card" style={{ maxWidth: 620 }}>
       <div className="eyebrow">Bài Test Kiến Thức</div>
       <h1>Bạn hiểu bao nhiêu về chủ đề này?</h1>
       <p>
@@ -171,16 +179,48 @@ export default function HomePage() {
         </button>
       </form>
 
-      <div className="link-row">
-        <a href="/practice">Ôn tập trước khi thi →</a>
+      <div className="nav-section-label">Luyện tập</div>
+      <div className="nav-grid">
+        <a href="/practice" className="nav-tile featured">
+          <span className="nav-tile-icon">
+            <BookOpen size={18} />
+          </span>
+          <span className="nav-tile-label">Ôn tập trước khi thi</span>
+        </a>
       </div>
 
-      <div className="link-row">
-        <a href="/results">Xem lịch sử kết quả →</a>
-        <a href="/report">Xem báo cáo tổng hợp →</a>
-        <a href="/dashboard">Xem dashboard →</a>
-        <a href="/admin-questions">Quản lý câu hỏi →</a>
-        <a href="/admin-users">Quản lý người dùng →</a>
+      <div className="nav-section-label">Khu vực quản trị (cần mật khẩu)</div>
+      <div className="nav-grid">
+        <a href="/results" className="nav-tile">
+          <span className="nav-tile-icon">
+            <History size={18} />
+          </span>
+          <span className="nav-tile-label">Lịch sử kết quả</span>
+        </a>
+        <a href="/report" className="nav-tile">
+          <span className="nav-tile-icon">
+            <ClipboardList size={18} />
+          </span>
+          <span className="nav-tile-label">Báo cáo tổng hợp</span>
+        </a>
+        <a href="/dashboard" className="nav-tile">
+          <span className="nav-tile-icon">
+            <LayoutDashboard size={18} />
+          </span>
+          <span className="nav-tile-label">Dashboard</span>
+        </a>
+        <a href="/admin-questions" className="nav-tile">
+          <span className="nav-tile-icon">
+            <ListChecks size={18} />
+          </span>
+          <span className="nav-tile-label">Quản lý câu hỏi</span>
+        </a>
+        <a href="/admin-users" className="nav-tile">
+          <span className="nav-tile-icon">
+            <Users size={18} />
+          </span>
+          <span className="nav-tile-label">Quản lý người dùng</span>
+        </a>
       </div>
     </div>
   );
