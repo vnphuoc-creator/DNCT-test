@@ -27,6 +27,11 @@
   --font-mono: "IBM Plex Mono", "Consolas", monospace;
 
   --radius: 10px;
+
+  /* Bầu trời làm nền tổng thể — máy bay "bay" qua nền này */
+  --sky-top: #2a6bc7;
+  --sky-mid: #6ea8e0;
+  --sky-bottom: #cfe4f7;
 }
 
 * {
@@ -37,9 +42,21 @@ html,
 body {
   margin: 0;
   padding: 0;
-  background: var(--ink);
+  min-height: 100%;
+  background: linear-gradient(180deg, var(--sky-top) 0%, var(--sky-mid) 55%, var(--sky-bottom) 100%)
+    fixed;
   color: var(--text);
   font-family: var(--font-body);
+}
+
+/* Vài đám mây mềm, tĩnh, chỉ mang tính trang trí nền bầu trời */
+body {
+  background-image: radial-gradient(ellipse 220px 60px at 12% 18%, rgba(255, 255, 255, 0.55), transparent 70%),
+    radial-gradient(ellipse 260px 70px at 85% 10%, rgba(255, 255, 255, 0.45), transparent 70%),
+    radial-gradient(ellipse 240px 65px at 75% 60%, rgba(255, 255, 255, 0.35), transparent 70%),
+    radial-gradient(ellipse 200px 55px at 20% 75%, rgba(255, 255, 255, 0.3), transparent 70%),
+    linear-gradient(180deg, var(--sky-top) 0%, var(--sky-mid) 55%, var(--sky-bottom) 100%);
+  background-attachment: fixed;
 }
 
 @media (prefers-reduced-motion: no-preference) {
@@ -72,10 +89,6 @@ a {
   flex-direction: column;
   align-items: center;
   padding: 72px 20px 80px;
-  background-image: linear-gradient(var(--hairline) 1px, transparent 1px),
-    linear-gradient(90deg, var(--hairline) 1px, transparent 1px);
-  background-size: 34px 34px;
-  background-position: center top;
 }
 
 .card {
@@ -86,6 +99,7 @@ a {
   border-radius: var(--radius);
   padding: 32px;
   position: relative;
+  box-shadow: 0 18px 44px rgba(10, 20, 35, 0.35);
 }
 
 /* Dải "readout" mỏng phía trên mỗi card, như nhãn thiết bị */
@@ -368,36 +382,39 @@ button:active {
   pointer-events: none;
 }
 
-.plane-svg {
+.plane-img {
   position: absolute;
-  top: 12%;
-  left: -100px;
-  opacity: 0.65;
-  animation: fly-across 22s linear infinite;
+  top: 18%;
+  left: -320px;
+  width: 320px;
+  height: auto;
+  filter: drop-shadow(0 12px 20px rgba(10, 20, 35, 0.3));
+  animation: fly-across 26s linear infinite;
 }
 
 @keyframes fly-across {
   0% {
-    transform: translate(0, 0) rotate(-3deg);
+    transform: translate(0, 0) rotate(8deg);
   }
   50% {
-    transform: translate(calc(50vw + 50px), 22vh) rotate(2deg);
+    transform: translate(calc(50vw + 160px), 14vh) rotate(4deg);
   }
   100% {
-    transform: translate(calc(100vw + 100px), 0) rotate(-3deg);
+    transform: translate(calc(100vw + 320px), -4vh) rotate(8deg);
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .plane-svg {
+  .plane-img {
     animation: none;
     display: none;
   }
 }
 
 @media (max-width: 640px) {
-  .plane-svg {
-    transform: scale(0.7);
+  .plane-img {
+    width: 190px;
+    top: 10%;
   }
 }
 

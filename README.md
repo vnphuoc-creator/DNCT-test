@@ -181,6 +181,18 @@ admin) — thêm/sửa/xoá người ngay trên web, không cần SQL. Đã impo
 2. Dán và chạy toàn bộ nội dung file **`import-danh-sach-nguoi-dung.sql`** — tạo bảng
    `allowed_users` và import sẵn 24 người
 
+## Đã xong: nền bầu trời + máy bay ảnh thật, kích thước lớn
+
+Đổi hẳn nền toàn trang từ màu tối kiểu bảng điều khiển sang **nền bầu trời** (gradient xanh dương,
+có vài đám mây mờ trang trí), dùng đúng ảnh máy bay bạn gửi — phóng lên độ phân giải cao (600x600,
+ảnh gốc là icon phẳng nên phóng to vẫn nét, không bị vỡ) và tăng kích thước hiển thị (320px trên
+máy tính, 190px trên điện thoại — trước đó chỉ là hình vẽ nhỏ ~220px mờ nhạt).
+
+Các thẻ nội dung (card) vẫn giữ màu tối như trước — nổi bật rõ trên nền trời sáng, tạo cảm giác
+như bảng điều khiển/màn hình buồng lái đang nổi giữa bầu trời, hợp với hình ảnh máy bay bay qua.
+
+**Không cần cấu hình hay chạy SQL gì thêm** — chỉ cần upload code mới lên GitHub là áp dụng ngay.
+
 ## Đã xong: ẩn mô tả khi chia sẻ link + chủ đề cố định + máy bay dễ thấy hơn
 
 ### 1. Ẩn mô tả kỹ thuật khi chia sẻ link
