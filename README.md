@@ -181,6 +181,41 @@ admin) — thêm/sửa/xoá người ngay trên web, không cần SQL. Đã impo
 2. Dán và chạy toàn bộ nội dung file **`import-danh-sach-nguoi-dung.sql`** — tạo bảng
    `allowed_users` và import sẵn 24 người
 
+## Đã xong: ẩn mô tả khi chia sẻ link + chủ đề cố định + máy bay dễ thấy hơn
+
+### 1. Ẩn mô tả kỹ thuật khi chia sẻ link
+
+Trước đây khi dán link vào Zalo/Messenger, phần xem trước hiện dòng "Web bài test kiến thức tự
+chấm điểm, dựng bằng Next.js + Supabase" — đã bỏ dòng này, giờ chia sẻ link chỉ hiện tên
+"Bài Test Kiến Thức", không lộ thông tin công nghệ nữa.
+
+### 2. Chủ đề cố định trong Quản lý câu hỏi
+
+Trước đây ô "Chủ đề" là gõ tự do — dễ bị lệch tên theo thời gian (gõ "Nước cấp" khác lần "Trạm
+bơm nước cấp" chẳng hạn). Giờ đổi thành **danh sách chọn sẵn cố định** (15 hệ thống, dựa theo
+đúng sheet "Phân hệ" trong file bạn gửi trước đó) — thêm câu hỏi mới chỉ việc chọn đúng hệ trong
+danh sách, không gõ tay nữa, không còn sinh thêm chủ đề trùng/lệch tên.
+
+Vẫn có lựa chọn "+ Chủ đề khác (gõ tay)..." ở cuối danh sách, dùng khi thật sự cần thêm 1 hệ
+thống hoàn toàn mới chưa có trong danh sách.
+
+**Muốn sửa/thêm/bớt hệ thống trong danh sách cố định này?** Chỉ cần sửa 1 file duy nhất:
+`lib/categories.js` — thêm/xoá/đổi tên dòng nào trong mảng đó là áp dụng luôn cho toàn bộ trang
+Quản lý câu hỏi, không cần đụng gì khác. Nói mình biết nếu muốn mình chỉnh giúp.
+
+**Chạy thêm 1 dòng SQL để dọn sạch dữ liệu cũ** (phòng còn sót khoảng trắng thừa trong tên chủ đề
+từ trước, khiến không khớp chính xác với danh sách cố định): chạy file **`chuan-hoa-chu-de.sql`**
+trong Supabase — dòng lệnh cuối trong file sẽ liệt kê lại toàn bộ tên chủ đề hiện có, bạn xem thử
+có tên nào lạ/không khớp danh sách cố định thì báo mình để sửa tiếp.
+
+### 3. Máy bay dễ nhận thấy hơn
+
+Rút ngắn thời gian bay 1 vòng (từ 34s xuống 22s) và cho máy bay xuất hiện gần như ngay khi tải
+trang (trước đây phải chờ khoảng 6 giây mới thấy vì điểm xuất phát ở xa ngoài màn hình). Nếu upload
+code này lên mà vẫn không thấy máy bay, khả năng cao là bước upload GitHub/deploy Vercel chưa
+hoàn tất — kiểm tra lại tab Deployments trên Vercel xem trạng thái đã "Ready" với đúng commit mới
+nhất chưa.
+
 ## Đã xong: rút gọn ô tên, thanh tìm kiếm dài hơn, máy bay bay động nền web
 
 ### 1. Ô chọn tên trên trang chủ

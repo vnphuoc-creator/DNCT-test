@@ -3,7 +3,11 @@ import FlyingPlane from "./components/FlyingPlane";
 
 export const metadata = {
   title: "Bài Test Kiến Thức",
-  description: "Web bài test kiến thức tự chấm điểm, dựng bằng Next.js + Supabase",
+  description: "",
+  openGraph: {
+    title: "Bài Test Kiến Thức",
+    description: "",
+  },
 };
 
 export default function RootLayout({ children }) {

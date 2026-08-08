@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "../../lib/supabaseClient";
+import { FIXED_CATEGORIES } from "../../lib/categories";
 
 const emptyForm = {
   id: null,
@@ -23,6 +24,7 @@ export default function AdminQuestionsPage() {
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState("");
   const [uploadingImage, setUploadingImage] = useState(false);
+  const [customCategory, setCustomCategory] = useState(false);
 
   useEffect(() => {
     loadQuestions();
@@ -55,20 +57,24 @@ export default function AdminQuestionsPage() {
 
   function openCreate() {
     setForm(emptyForm);
+    setCustomCategory(false);
     setSaveError("");
     setMode("edit");
   }
 
   function openEdit(item) {
+    const cat = item.category || "";
     setForm({
       id: item.id,
       question_text: item.question_text,
       options: [...item.options],
       correct_index: item.correct_index,
-      category: item.category || "",
+      category: cat,
       explanation: item.explanation || "",
       image_url: item.image_url || "",
     });
+    // Nếu chủ đề hiện tại không nằm trong danh sách cố định, mở sẵn ô gõ tự do
+    setCustomCategory(cat !== "" && !FIXED_CATEGORIES.includes(cat));
     setSaveError("");
     setMode("edit");
   }
@@ -224,14 +230,50 @@ export default function AdminQuestionsPage() {
             onChange={(e) => setForm((f) => ({ ...f, question_text: e.target.value }))}
           />
 
-          <label>Chủ đề (không bắt buộc)</label>
-          <input
-            className="field"
-            type="text"
-            value={form.category}
-            onChange={(e) => setForm((f) => ({ ...f, category: e.target.value }))}
-            placeholder="Ví dụ: Trạm bơm nước cấp"
-          />
+          <label>Chủ đề</label>
+          {customCategory ? (
+            <>
+              <input
+                className="field"
+                type="text"
+                value={form.category}
+                onChange={(e) => setForm((f) => ({ ...f, category: e.target.value }))}
+                placeholder="Gõ tên chủ đề mới..."
+              />
+              <button
+                type="button"
+                className="btn-secondary"
+                style={{ marginTop: -10, marginBottom: 18, fontSize: 13, padding: "6px 10px" }}
+                onClick={() => {
+                  setCustomCategory(false);
+                  setForm((f) => ({ ...f, category: "" }));
+                }}
+              >
+                ← Chọn từ danh sách có sẵn
+              </button>
+            </>
+          ) : (
+            <select
+              className="field"
+              value={form.category}
+              onChange={(e) => {
+                if (e.target.value === "__custom__") {
+                  setCustomCategory(true);
+                  setForm((f) => ({ ...f, category: "" }));
+                } else {
+                  setForm((f) => ({ ...f, category: e.target.value }));
+                }
+              }}
+            >
+              <option value="">— Chưa chọn chủ đề —</option>
+              {FIXED_CATEGORIES.map((c) => (
+                <option key={c} value={c}>
+                  {c}
+                </option>
+              ))}
+              <option value="__custom__">+ Chủ đề khác (gõ tay)...</option>
+            </select>
+          )}
 
           <label>Hình ảnh minh hoạ (không bắt buộc)</label>
           {form.image_url ? (

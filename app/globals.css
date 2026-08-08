@@ -372,9 +372,9 @@ button:active {
 .plane-svg {
   position: absolute;
   top: 12%;
-  left: -260px;
-  opacity: 0.5;
-  animation: fly-across 34s linear infinite;
+  left: -100px;
+  opacity: 0.65;
+  animation: fly-across 22s linear infinite;
 }
 
 @keyframes fly-across {
@@ -382,10 +382,10 @@ button:active {
     transform: translate(0, 0) rotate(-3deg);
   }
   50% {
-    transform: translate(calc(50vw + 130px), 22vh) rotate(2deg);
+    transform: translate(calc(50vw + 50px), 22vh) rotate(2deg);
   }
   100% {
-    transform: translate(calc(100vw + 260px), 0) rotate(-3deg);
+    transform: translate(calc(100vw + 100px), 0) rotate(-3deg);
   }
 }
 
