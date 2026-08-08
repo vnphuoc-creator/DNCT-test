@@ -194,7 +194,7 @@ export default function DashboardPage() {
       {!charts ? (
         <p>Chưa có ai làm bài trong khoảng này cả. Thử chọn tháng khác ở trên.</p>
       ) : (
-        <>
+        <div key={selectedPeriod} className="dashboard-fade">
           <div
             style={{
               display: "grid",
@@ -228,7 +228,13 @@ export default function DashboardPage() {
                 <Tooltip
                   contentStyle={{ background: "#0d1620", border: "1px solid #26333f", color: "#eef2f5" }}
                 />
-                <Bar dataKey="Số người" fill={ACCENT} radius={[6, 6, 0, 0]} />
+                <Bar
+                  dataKey="Số người"
+                  fill={ACCENT}
+                  radius={[6, 6, 0, 0]}
+                  animationDuration={700}
+                  animationEasing="ease-out"
+                />
               </BarChart>
             </ResponsiveContainer>
           </ChartBlock>
@@ -247,7 +253,16 @@ export default function DashboardPage() {
                   contentStyle={{ background: "#0d1620", border: "1px solid #26333f", color: "#eef2f5" }}
                   formatter={(value, name, props) => [`${value}%`, props.payload.ten]}
                 />
-                <Line type="monotone" dataKey="Điểm %" stroke={ACCENT} strokeWidth={2} dot={{ r: 3 }} />
+                <Line
+                  type="monotone"
+                  dataKey="Điểm %"
+                  stroke={ACCENT}
+                  strokeWidth={2}
+                  dot={{ r: 3 }}
+                  activeDot={{ r: 6 }}
+                  animationDuration={800}
+                  animationEasing="ease-out"
+                />
               </LineChart>
             </ResponsiveContainer>
           </ChartBlock>
@@ -263,6 +278,8 @@ export default function DashboardPage() {
                   cy="50%"
                   outerRadius={90}
                   label={(entry) => `${entry.name}: ${entry.value}`}
+                  animationDuration={700}
+                  animationEasing="ease-out"
                 >
                   <Cell fill={OK} />
                   <Cell fill={WRONG} />
@@ -290,12 +307,18 @@ export default function DashboardPage() {
                   <Tooltip
                     contentStyle={{ background: "#0d1620", border: "1px solid #26333f", color: "#eef2f5" }}
                   />
-                  <Bar dataKey="Tỷ lệ sai %" fill={WRONG} radius={[0, 6, 6, 0]} />
+                  <Bar
+                    dataKey="Tỷ lệ sai %"
+                    fill={WRONG}
+                    radius={[0, 6, 6, 0]}
+                    animationDuration={700}
+                    animationEasing="ease-out"
+                  />
                 </BarChart>
               </ResponsiveContainer>
             </ChartBlock>
           )}
-        </>
+        </div>
       )}
 
       <div className="link-row" style={{ marginTop: 24 }}>
@@ -325,6 +348,7 @@ function ChartBlock({ title, children }) {
 function StatBox({ label, value }) {
   return (
     <div
+      className="stat-box"
       style={{
         background: "#0d1620",
         border: "1px solid var(--panel-border)",

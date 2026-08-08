@@ -181,6 +181,49 @@ admin) — thêm/sửa/xoá người ngay trên web, không cần SQL. Đã impo
 2. Dán và chạy toàn bộ nội dung file **`import-danh-sach-nguoi-dung.sql`** — tạo bảng
    `allowed_users` và import sẵn 24 người
 
+## Đã xong: logo khi chia sẻ link + tìm kiếm dài hơn + dashboard mượt hơn
+
+### 1. Logo công ty khi chia sẻ link
+
+Tạo riêng 1 ảnh xem trước đẹp (1200x630 — đúng kích thước chuẩn Zalo/Messenger/Facebook hay
+dùng), kết hợp nền trời + máy bay + logo AHT + tên "Bài Test Kiến Thức", thay vì chỉ để trống như
+trước.
+
+**Bắt buộc phải làm thêm 1 bước** để ảnh hiện đúng khi dán link (nếu bỏ qua, một số ứng dụng có
+thể không hiện được ảnh preview):
+
+1. Vào Vercel → project → **Settings** → **Environment Variables**
+2. Thêm biến:
+
+   | Key | Value |
+   |---|---|
+   | `NEXT_PUBLIC_SITE_URL` | Đúng domain thật bạn đang dùng, ví dụ `https://dnct-test.vercel.app` |
+
+3. **Redeploy**
+
+Nếu domain thay đổi sau này (như đã đổi vài lần trước đây), nhớ quay lại sửa biến này cho khớp.
+
+### 2. Thanh tìm kiếm trong Quản lý người dùng
+
+Đã đổi giống hệt cách làm ở Quản lý câu hỏi — nằm riêng 1 dòng, dài hết chiều ngang trang.
+
+### 3. Dashboard mượt hơn
+
+Thêm hiệu ứng chuyển động mượt cho tất cả biểu đồ (cột, đường, tròn đều có hiệu ứng "vẽ dần" khi
+tải trang thay vì hiện đột ngột), thêm hiệu ứng mờ dần khi đổi bộ lọc tháng, và hiệu ứng nhẹ khi
+rê chuột qua các ô số liệu tổng quan.
+
+### Về việc xuất ra Google Sheet
+
+File Excel (`.xlsx`) đang xuất ra từ nút "Xuất báo cáo ra Excel" đã **mở được trực tiếp trong
+Google Sheets** — vào Google Sheets → **File → Import** (hoặc **Nhập**) → tải file `.xlsx` vừa
+tải về lên → chọn "Insert new sheet(s)" → xong, không cần bước chuyển đổi nào thêm.
+
+Nếu ý bạn là muốn web **tự động ghi thẳng vào 1 Google Sheet đang mở sẵn** (không cần tải file
+rồi tự tay import) — đây là tính năng lớn hơn, cần đúng bước cấu hình phức tạp (Google Cloud,
+Service Account...) mà lúc trước bạn đã chọn dùng dashboard trong web để tránh việc này. Nếu vẫn
+muốn làm hướng đó, nói mình biết, mình sẽ hướng dẫn từng bước.
+
 ## Đã xong: nền bầu trời + máy bay ảnh thật, kích thước lớn
 
 Đổi hẳn nền toàn trang từ màu tối kiểu bảng điều khiển sang **nền bầu trời** (gradient xanh dương,

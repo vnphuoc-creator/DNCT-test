@@ -2,11 +2,15 @@ import "./globals.css";
 import FlyingPlane from "./components/FlyingPlane";
 
 export const metadata = {
+  metadataBase: process.env.NEXT_PUBLIC_SITE_URL
+    ? new URL(process.env.NEXT_PUBLIC_SITE_URL)
+    : undefined,
   title: "Bài Test Kiến Thức",
   description: "",
   openGraph: {
     title: "Bài Test Kiến Thức",
     description: "",
+    images: ["/og-image.png"],
   },
 };
 

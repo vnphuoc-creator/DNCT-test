@@ -386,6 +386,7 @@ export default function ReportPage() {
 function StatBox({ label, value }) {
   return (
     <div
+      className="stat-box"
       style={{
         background: "#0d1620",
         border: "1px solid var(--panel-border)",

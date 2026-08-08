@@ -76,6 +76,21 @@ body {
   }
 }
 
+@media (prefers-reduced-motion: no-preference) {
+  .dashboard-fade {
+    animation: rise 0.4s ease both;
+  }
+}
+
+.stat-box {
+  transition: border-color 0.2s ease, transform 0.15s ease;
+}
+
+.stat-box:hover {
+  border-color: var(--amber-dim);
+  transform: translateY(-2px);
+}
+
 a {
   color: inherit;
 }

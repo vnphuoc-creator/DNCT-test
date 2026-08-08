@@ -167,7 +167,7 @@ export default function AdminUsersPage() {
   }
 
   return (
-    <div className="card" style={{ maxWidth: 700 }}>
+    <div className="card" style={{ maxWidth: 900 }}>
       <div className="eyebrow">Quản lý người dùng</div>
       <h1>Danh sách được phép làm bài ({users.length} người)</h1>
       <p>
@@ -175,16 +175,15 @@ export default function AdminUsersPage() {
         nhân sự mới, không cần chỉnh sửa database.
       </p>
 
-      <div style={{ display: "flex", gap: 10, marginBottom: 18 }}>
-        <input
-          className="field"
-          style={{ margin: 0, flex: 1 }}
-          type="text"
-          placeholder="Tìm theo tên hoặc email..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-        />
-        <button className="btn-primary" style={{ flexShrink: 0 }} onClick={openCreate}>
+      <input
+        className="field"
+        type="text"
+        placeholder="Tìm theo tên hoặc email..."
+        value={search}
+        onChange={(e) => setSearch(e.target.value)}
+      />
+      <div style={{ display: "flex", justifyContent: "flex-end", marginTop: -8, marginBottom: 18 }}>
+        <button className="btn-primary" onClick={openCreate}>
           + Thêm người
         </button>
       </div>
