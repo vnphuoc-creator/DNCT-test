@@ -61,7 +61,7 @@ export default function HomePage() {
 
   function handlePick(user) {
     setSelected(user);
-    setQuery(`${user.full_name} — ${user.email}`);
+    setQuery(user.full_name);
     setShowList(false);
     setError("");
   }

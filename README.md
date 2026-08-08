@@ -181,6 +181,30 @@ admin) — thêm/sửa/xoá người ngay trên web, không cần SQL. Đã impo
 2. Dán và chạy toàn bộ nội dung file **`import-danh-sach-nguoi-dung.sql`** — tạo bảng
    `allowed_users` và import sẵn 24 người
 
+## Đã xong: rút gọn ô tên, thanh tìm kiếm dài hơn, máy bay bay động nền web
+
+### 1. Ô chọn tên trên trang chủ
+
+Sau khi chọn xong, ô chỉ hiện **tên** (không hiện kèm email nữa) — gọn hơn khi nhìn. Lúc đang gõ
+tìm kiếm, danh sách gợi ý bên dưới vẫn hiện đủ cả tên và email để bạn dễ phân biệt người trùng tên
+(nếu có).
+
+### 2. Thanh tìm kiếm trong Quản lý câu hỏi
+
+Đã kéo dài ra hết chiều ngang trang (trước đây bị chia sẻ chỗ với nút "+ Thêm câu hỏi" nên hơi
+ngắn), giờ nằm riêng 1 dòng, dễ gõ và đọc kết quả hơn.
+
+### 3. Máy bay bay ngang nền web
+
+Thêm 1 hình máy bay dạng vẽ đơn giản (véc-tơ, không phải ảnh/video thật — công cụ hiện tại chưa
+làm được ảnh động thật), bay chậm rãi theo đường chéo qua nền web, có gắn logo công ty lên thân
+kiểu logo hãng bay. Hiệu ứng nhẹ nhàng, mờ, không làm rối mắt khi đọc nội dung. Nếu trình duyệt
+của người dùng bật chế độ "giảm hiệu ứng chuyển động" (dành cho người dễ chóng mặt), máy bay sẽ tự
+ẩn đi, không di chuyển.
+
+**Muốn chỉnh gì thêm** (đổi tốc độ bay, đổi hướng bay, làm to/nhỏ máy bay, đổi màu...) cứ nói
+mình biết, sửa nhanh.
+
 ## Đã xong: khoá lịch mở bài test hằng tháng + bộ câu hỏi mới + logo công ty
 
 ### 1. Chỉ mở bài test từ ngày 27 hằng tháng tới hết tháng

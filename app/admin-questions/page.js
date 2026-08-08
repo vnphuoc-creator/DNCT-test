@@ -335,20 +335,19 @@ export default function AdminQuestionsPage() {
   }
 
   return (
-    <div className="card" style={{ maxWidth: 800 }}>
+    <div className="card" style={{ maxWidth: 1040 }}>
       <div className="eyebrow">Quản lý câu hỏi</div>
       <h1>Ngân hàng câu hỏi ({questions.length} câu)</h1>
 
-      <div style={{ display: "flex", gap: 10, marginBottom: 18 }}>
-        <input
-          className="field"
-          style={{ margin: 0, flex: 1 }}
-          type="text"
-          placeholder="Tìm theo nội dung hoặc chủ đề..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-        />
-        <button className="btn-primary" style={{ flexShrink: 0 }} onClick={openCreate}>
+      <input
+        className="field"
+        type="text"
+        placeholder="Tìm theo nội dung câu hỏi hoặc chủ đề..."
+        value={search}
+        onChange={(e) => setSearch(e.target.value)}
+      />
+      <div style={{ display: "flex", justifyContent: "flex-end", marginTop: -8, marginBottom: 18 }}>
+        <button className="btn-primary" onClick={openCreate}>
           + Thêm câu hỏi
         </button>
       </div>

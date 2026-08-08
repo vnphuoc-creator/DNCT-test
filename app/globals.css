@@ -65,6 +65,8 @@ a {
 
 /* Nền tổng thể: lưới kỹ thuật rất mờ, gợi giấy kẻ ô của bản vẽ kỹ thuật */
 .shell {
+  position: relative;
+  z-index: 1;
   min-height: 100vh;
   display: flex;
   flex-direction: column;
@@ -357,6 +359,47 @@ button:active {
   border-radius: 8px;
   padding: 10px;
   margin-bottom: 18px;
+}
+
+.plane-track {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.plane-svg {
+  position: absolute;
+  top: 12%;
+  left: -260px;
+  opacity: 0.5;
+  animation: fly-across 34s linear infinite;
+}
+
+@keyframes fly-across {
+  0% {
+    transform: translate(0, 0) rotate(-3deg);
+  }
+  50% {
+    transform: translate(calc(50vw + 130px), 22vh) rotate(2deg);
+  }
+  100% {
+    transform: translate(calc(100vw + 260px), 0) rotate(-3deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .plane-svg {
+    animation: none;
+    display: none;
+  }
+}
+
+@media (max-width: 640px) {
+  .plane-svg {
+    transform: scale(0.7);
+  }
 }
 
 .brand-badge {

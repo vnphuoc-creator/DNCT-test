@@ -1,4 +1,5 @@
 import "./globals.css";
+import FlyingPlane from "./components/FlyingPlane";
 
 export const metadata = {
   title: "Bài Test Kiến Thức",
@@ -17,6 +18,7 @@ export default function RootLayout({ children }) {
         />
       </head>
       <body>
+        <FlyingPlane />
         <a href="/" className="brand-badge">
           <img src="/logo.png" alt="Logo công ty" />
         </a>
