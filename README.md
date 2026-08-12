@@ -181,6 +181,39 @@ admin) — thêm/sửa/xoá người ngay trên web, không cần SQL. Đã impo
 2. Dán và chạy toàn bộ nội dung file **`import-danh-sach-nguoi-dung.sql`** — tạo bảng
    `allowed_users` và import sẵn 24 người
 
+## Đã xong: xoá lịch sử tháng 8 + tính "kỳ" theo chu kỳ từ ngày 25 (không theo lịch tháng)
+
+### 1. Xoá lịch sử các bài đã làm trong tháng 8
+
+Vào Supabase → SQL Editor → New query → chạy:
+
+```sql
+delete from quiz_results where period = '2026-08';
+```
+
+**Cảnh báo**: xoá vĩnh viễn, không khôi phục lại được.
+
+### 2. Tính "kỳ làm bài" theo chu kỳ 25 → 24 tháng sau, không theo lịch tháng thường
+
+**Vấn đề trước đây**: hệ thống tính "đã làm bài tháng này chưa" theo đúng lịch tháng (ngày 1 tới
+cuối tháng). Nếu ai đó lỡ vào làm bài **trước** ngày mở chính thức (ví dụ ngày 20/8, trước mốc mở
+27/8), lượt đó vẫn bị tính vào "tháng 8" — khiến khi tới ngày mở thật (27/8), người đó bị báo
+"đã làm rồi", dù họ làm bài không đúng lúc.
+
+**Cách sửa**: đổi cách tính kỳ sang **chu kỳ xoay vòng bắt đầu đúng ngày mở bài test** (dùng
+chung biến `NEXT_PUBLIC_QUIZ_OPEN_DAY` đã có sẵn — không cần thêm biến mới). Ví dụ đặt ngày mở là
+`25`:
+
+- Từ 25/8 đến hết 24/9 → tính chung 1 kỳ, nhãn hiển thị "2026-08"
+- Ai làm bài trước ngày 25/9 (kể cả lỡ vào sớm) → vẫn thuộc kỳ trước đó, không bị chặn khi kỳ mới
+  (từ 25/9) thật sự bắt đầu
+
+**Bạn cần làm 1 việc**: vào Vercel → Settings → Environment Variables → sửa `NEXT_PUBLIC_QUIZ_OPEN_DAY`
+thành `25` (trước đó có thể đang là `27` từ lần cấu hình trước) → **Redeploy**.
+
+Trang Báo cáo và Dashboard cũng tự động nhóm dữ liệu theo đúng chu kỳ mới này, không cần chỉnh gì
+thêm.
+
 ## Đã xong: logo khi chia sẻ link + tìm kiếm dài hơn + dashboard mượt hơn
 
 ### 1. Logo công ty khi chia sẻ link

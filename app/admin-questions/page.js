@@ -19,6 +19,7 @@ export default function AdminQuestionsPage() {
   const [errorMsg, setErrorMsg] = useState("");
   const [questions, setQuestions] = useState([]);
   const [search, setSearch] = useState("");
+  const [categoryFilter, setCategoryFilter] = useState("");
   const [mode, setMode] = useState("list"); // list | edit
   const [form, setForm] = useState(emptyForm);
   const [saving, setSaving] = useState(false);
@@ -47,13 +48,25 @@ export default function AdminQuestionsPage() {
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
-    if (!q) return questions;
-    return questions.filter(
-      (item) =>
+    return questions.filter((item) => {
+      const matchesSearch =
+        !q ||
         item.question_text.toLowerCase().includes(q) ||
-        (item.category || "").toLowerCase().includes(q)
-    );
-  }, [questions, search]);
+        (item.category || "").toLowerCase().includes(q);
+      const matchesCategory = !categoryFilter || item.category === categoryFilter;
+      return matchesSearch && matchesCategory;
+    });
+  }, [questions, search, categoryFilter]);
+
+  // Đếm số câu mỗi chủ đề, để hiện luôn trong dropdown cho dễ hình dung
+  const categoryCounts = useMemo(() => {
+    const counts = {};
+    for (const q of questions) {
+      const key = q.category || "";
+      counts[key] = (counts[key] || 0) + 1;
+    }
+    return counts;
+  }, [questions]);
 
   function openCreate() {
     setForm(emptyForm);
@@ -381,14 +394,35 @@ export default function AdminQuestionsPage() {
       <div className="eyebrow">Quản lý câu hỏi</div>
       <h1>Ngân hàng câu hỏi ({questions.length} câu)</h1>
 
-      <input
-        className="field"
-        type="text"
-        placeholder="Tìm theo nội dung câu hỏi hoặc chủ đề..."
-        value={search}
-        onChange={(e) => setSearch(e.target.value)}
-      />
-      <div style={{ display: "flex", justifyContent: "flex-end", marginTop: -8, marginBottom: 18 }}>
+      <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+        <input
+          className="field"
+          style={{ flex: 2, minWidth: 220 }}
+          type="text"
+          placeholder="Tìm theo nội dung câu hỏi hoặc chủ đề..."
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+        />
+        <select
+          className="field"
+          style={{ flex: 1, minWidth: 200 }}
+          value={categoryFilter}
+          onChange={(e) => setCategoryFilter(e.target.value)}
+        >
+          <option value="">Tất cả chủ đề ({questions.length} câu)</option>
+          {FIXED_CATEGORIES.map((c) => (
+            <option key={c} value={c}>
+              {c} ({categoryCounts[c] || 0})
+            </option>
+          ))}
+          {categoryCounts[""] > 0 && (
+            <option value="__none__" disabled>
+              — {categoryCounts[""]} câu chưa gán chủ đề —
+            </option>
+          )}
+        </select>
+      </div>
+      <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 10, marginBottom: 18 }}>
         <button className="btn-primary" onClick={openCreate}>
           + Thêm câu hỏi
         </button>
