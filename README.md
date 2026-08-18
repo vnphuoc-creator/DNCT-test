@@ -1,5 +1,25 @@
 # Bài Test Kiến Thức — Hướng dẫn cho người mới
 
+## Đã xong: lời nhắn chúc mừng / động viên khi nộp bài (ngưỡng 80%)
+
+Sau khi bấm nộp bài (bài thi chính thức), ngay dưới đồng hồ đo điểm sẽ hiện thêm 1 khung lời nhắn:
+
+- **Từ 80% trở lên**: lời chúc mừng (có vài câu khác nhau, random mỗi lần để đỡ nhàm), khung màu
+  xanh, đồng hồ đo cũng chuyển màu xanh khớp theo
+- **Dưới 80%**: lời động viên nhẹ nhàng, khuyến khích vào mục Ôn tập luyện thêm, khung màu hổ
+  phách, đồng hồ đo chuyển màu đỏ khớp theo
+
+**Muốn đổi ngưỡng 80% hoặc đổi nội dung lời nhắn?** Mở file `app/quiz/page.js`, sửa ngay đầu file:
+
+```js
+const PASS_THRESHOLD = 80; // đổi số này nếu muốn ngưỡng khác
+
+const CONGRATS_MESSAGES = [ ... ];  // các câu chúc mừng, thêm/bớt/sửa tuỳ ý
+const ENCOURAGE_MESSAGES = [ ... ]; // các câu động viên, thêm/bớt/sửa tuỳ ý
+```
+
+Không cần cấu hình hay chạy SQL gì thêm — chỉ cần upload code mới lên GitHub.
+
 ## Đã xong: Dashboard nâng cấp (theo ngày, danh sách chưa làm bài, xuất PDF) + Chatbot tra cứu câu hỏi
 
 ### 1. Dashboard nâng cấp

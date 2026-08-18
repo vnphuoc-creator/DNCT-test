@@ -49,6 +49,25 @@ function pickEvenlyAcrossCategories(allQuestions, count) {
   return shuffle(picked); // trộn lại thứ tự cuối cùng để không lộ theo nhóm
 }
 
+const PASS_THRESHOLD = 80;
+
+const CONGRATS_MESSAGES = [
+  "Xuất sắc! Bạn nắm kiến thức rất chắc, cứ giữ phong độ này nhé! 🎉",
+  "Làm tốt lắm! Kết quả này cho thấy bạn đã ôn tập rất kỹ. 👏",
+  "Tuyệt vời! Chúc mừng bạn đã hoàn thành bài test với kết quả rất tốt. 🎉",
+];
+
+const ENCOURAGE_MESSAGES = [
+  "Cũng ổn rồi, cứ ôn lại những phần chưa chắc là lần sau sẽ tốt hơn nhiều. Bạn thử vào mục Ôn tập xem lại nhé! 💪",
+  "Không sao cả, ai cũng có chỗ cần ôn thêm. Ghé qua mục Ôn tập luyện lại vài lần là chắc kiến thức ngay. 🙂",
+  "Gần được rồi! Dành chút thời gian ôn lại các câu đã sai, lần sau bạn sẽ làm tốt hơn nhiều. 💪",
+];
+
+function getResultMessage(percent) {
+  const pool = percent >= PASS_THRESHOLD ? CONGRATS_MESSAGES : ENCOURAGE_MESSAGES;
+  return pool[Math.floor(Math.random() * pool.length)];
+}
+
 export default function QuizPage() {
   const [userName, setUserName] = useState("");
   const [userEmail, setUserEmail] = useState("");
@@ -59,6 +78,7 @@ export default function QuizPage() {
   const [selected, setSelected] = useState(null);
   const [score, setScore] = useState(0);
   const [saving, setSaving] = useState(false);
+  const [resultMessage, setResultMessage] = useState("");
   const [userAnswers, setUserAnswers] = useState([]);
   const startTimeRef = useRef(null);
 
@@ -175,6 +195,8 @@ export default function QuizPage() {
         "Đã chấm điểm xong nhưng lưu kết quả bị lỗi: " + error.message
       );
     }
+    const finalPercent = Math.round((score / questions.length) * 100);
+    setResultMessage(getResultMessage(finalPercent));
     setStatus("finished");
   }
 
@@ -197,12 +219,33 @@ export default function QuizPage() {
 
   if (status === "finished") {
     const percent = Math.round((score / questions.length) * 100);
+    const passed = percent >= PASS_THRESHOLD;
     return (
       <div className="card">
         <div className="eyebrow">Kết quả</div>
         <h2>Xong rồi, {userName}!</h2>
         {errorMsg && <div className="error-box">{errorMsg}</div>}
-        <ScoreGauge percent={percent} label={`${score}/${questions.length} CÂU ĐÚNG`} />
+        <ScoreGauge
+          percent={percent}
+          label={`${score}/${questions.length} CÂU ĐÚNG`}
+          passThreshold={PASS_THRESHOLD}
+        />
+        <div
+          className="result-message"
+          style={{
+            textAlign: "center",
+            padding: "12px 16px",
+            borderRadius: 8,
+            marginBottom: 18,
+            fontSize: 15,
+            lineHeight: 1.6,
+            background: passed ? "var(--ok-glow)" : "var(--amber-glow)",
+            border: `1px solid ${passed ? "var(--ok)" : "var(--amber-dim)"}`,
+            color: "var(--text)",
+          }}
+        >
+          {resultMessage}
+        </div>
         <div className="link-row">
           <a href="/practice">
             <button className="btn-secondary">Ôn tập thêm</button>
