@@ -1,312 +1,221 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import { supabase } from "../../lib/supabaseClient";
-import { getQuizWindowStatus, formatWindowMessage } from "../../lib/quizWindow";
-import { getCurrentPeriod, formatPeriodLabel } from "../../lib/period";
-import ScoreGauge from "../components/ScoreGauge";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
+import { supabase } from "../lib/supabaseClient";
+import { getQuizWindowStatus, formatWindowMessage } from "../lib/quizWindow";
+import { getCurrentPeriod, formatPeriodLabel } from "../lib/period";
+import {
+  BookOpen,
+  History,
+  ClipboardList,
+  LayoutDashboard,
+  ListChecks,
+  Users,
+} from "lucide-react";
 
-// Số câu hỏi ngẫu nhiên cho mỗi lượt làm bài (đổi số này nếu muốn nhiều/ít hơn)
-const QUESTIONS_PER_QUIZ = 25;
-
-function shuffle(array) {
-  const copy = [...array];
-  for (let i = copy.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [copy[i], copy[j]] = [copy[j], copy[i]];
-  }
-  return copy;
-}
-
-// Bốc câu hỏi CHIA ĐỀU theo từng chủ đề (category), thay vì random thuần —
-// tránh việc hệ nào có nhiều câu trong kho sẽ chiếm phần lớn bài test.
-// Cách làm: trộn ngẫu nhiên câu hỏi trong từng chủ đề, rồi lấy lần lượt
-// "vòng tròn" mỗi chủ đề 1 câu cho tới khi đủ số lượng cần thiết.
-function pickEvenlyAcrossCategories(allQuestions, count) {
-  const byCategory = {};
-  for (const q of allQuestions) {
-    const key = q.category || "Khác";
-    if (!byCategory[key]) byCategory[key] = [];
-    byCategory[key].push(q);
-  }
-  const categoryKeys = shuffle(Object.keys(byCategory));
-  const shuffledGroups = categoryKeys.map((key) => shuffle(byCategory[key]));
-
-  const picked = [];
-  let round = 0;
-  while (picked.length < count) {
-    let addedThisRound = false;
-    for (const group of shuffledGroups) {
-      if (picked.length >= count) break;
-      if (group[round]) {
-        picked.push(group[round]);
-        addedThisRound = true;
-      }
-    }
-    if (!addedThisRound) break; // hết sạch câu hỏi ở mọi chủ đề
-    round += 1;
-  }
-  return shuffle(picked); // trộn lại thứ tự cuối cùng để không lộ theo nhóm
-}
-
-const PASS_THRESHOLD = 80;
-
-const CONGRATS_MESSAGES = [
-  "Xuất sắc! Bạn nắm kiến thức rất chắc, cứ giữ phong độ này nhé! 🎉",
-  "Làm tốt lắm! Kết quả này cho thấy bạn đã ôn tập rất kỹ. 👏",
-  "Tuyệt vời! Chúc mừng bạn đã hoàn thành bài test với kết quả rất tốt. 🎉",
-];
-
-const ENCOURAGE_MESSAGES = [
-  "Cũng ổn rồi, cứ ôn lại những phần chưa chắc là lần sau sẽ tốt hơn nhiều. Bạn thử vào mục Ôn tập xem lại nhé! 💪",
-  "Không sao cả, ai cũng có chỗ cần ôn thêm. Ghé qua mục Ôn tập luyện lại vài lần là chắc kiến thức ngay. 🙂",
-  "Gần được rồi! Dành chút thời gian ôn lại các câu đã sai, lần sau bạn sẽ làm tốt hơn nhiều. 💪",
-];
-
-function getResultMessage(percent) {
-  const pool = percent >= PASS_THRESHOLD ? CONGRATS_MESSAGES : ENCOURAGE_MESSAGES;
-  return pool[Math.floor(Math.random() * pool.length)];
-}
-
-export default function QuizPage() {
-  const [userName, setUserName] = useState("");
-  const [userEmail, setUserEmail] = useState("");
-  const [status, setStatus] = useState("loading"); // loading | error | playing | finished
-  const [errorMsg, setErrorMsg] = useState("");
-  const [questions, setQuestions] = useState([]);
-  const [current, setCurrent] = useState(0);
-  const [selected, setSelected] = useState(null);
-  const [score, setScore] = useState(0);
-  const [saving, setSaving] = useState(false);
-  const [resultMessage, setResultMessage] = useState("");
-  const [userAnswers, setUserAnswers] = useState([]);
-  const startTimeRef = useRef(null);
+export default function HomePage() {
+  const [allUsers, setAllUsers] = useState([]);
+  const [loadingUsers, setLoadingUsers] = useState(true);
+  const [query, setQuery] = useState("");
+  const [selected, setSelected] = useState(null); // { id, full_name, email }
+  const [showList, setShowList] = useState(false);
+  const [error, setError] = useState("");
+  const [checking, setChecking] = useState(false);
+  const [windowStatus, setWindowStatus] = useState({ open: true, reason: null });
+  const router = useRouter();
+  const boxRef = useRef(null);
 
   useEffect(() => {
-    const savedName = localStorage.getItem("quiz_user_name");
-    const savedEmail = localStorage.getItem("quiz_user_email");
-    if (!savedName || !savedEmail) {
-      window.location.href = "/";
-      return;
-    }
+    setWindowStatus(getQuizWindowStatus());
+    loadUsers();
 
-    const windowStatus = getQuizWindowStatus();
-    if (!windowStatus.open) {
-      setErrorMsg(formatWindowMessage(windowStatus));
-      setStatus("error");
-      return;
+    function handleClickOutside(e) {
+      if (boxRef.current && !boxRef.current.contains(e.target)) {
+        setShowList(false);
+      }
     }
-
-    setUserName(savedName);
-    setUserEmail(savedEmail);
-    checkAlreadyTakenThenLoad(savedEmail);
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  async function checkAlreadyTakenThenLoad(emailToCheck) {
-    const { data, error } = await supabase
+  async function loadUsers() {
+    setLoadingUsers(true);
+    const { data, error: fetchError } = await supabase
+      .from("allowed_users")
+      .select("id, full_name, email")
+      .order("full_name", { ascending: true });
+    if (!fetchError) setAllUsers(data || []);
+    setLoadingUsers(false);
+  }
+
+  const matches = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (!q) return allUsers.slice(0, 8);
+    return allUsers
+      .filter(
+        (u) => u.full_name.toLowerCase().includes(q) || u.email.toLowerCase().includes(q)
+      )
+      .slice(0, 8);
+  }, [allUsers, query]);
+
+  function handlePick(user) {
+    setSelected(user);
+    setQuery(user.full_name);
+    setShowList(false);
+    setError("");
+  }
+
+  function handleQueryChange(v) {
+    setQuery(v);
+    setSelected(null);
+    setShowList(true);
+  }
+
+  async function handleStart(e) {
+    e.preventDefault();
+    setError("");
+
+    if (!selected) {
+      setError(
+        "Chọn đúng tên bạn trong danh sách gợi ý. Không tìm thấy tên? Liên hệ người quản lý bài test để được thêm vào danh sách."
+      );
+      return;
+    }
+
+    const status = getQuizWindowStatus();
+    if (!status.open) {
+      setError(formatWindowMessage(status));
+      return;
+    }
+
+    setChecking(true);
+    const { data, error: fetchError } = await supabase
       .from("quiz_results")
-      .select("id, score, total")
-      .ilike("email", emailToCheck)
+      .select("id, score, total, created_at")
+      .ilike("email", selected.email)
       .eq("period", getCurrentPeriod())
+      .order("created_at", { ascending: false })
       .limit(1);
 
-    if (error) {
-      setErrorMsg(error.message);
-      setStatus("error");
+    setChecking(false);
+
+    if (fetchError) {
+      setError("Không kiểm tra được, thử lại sau: " + fetchError.message);
       return;
     }
+
     if (data && data.length > 0) {
-      setErrorMsg(
-        `Bạn đã làm bài của ${formatPeriodLabel(getCurrentPeriod())} rồi (đạt ${data[0].score}/${data[0].total} điểm). Mỗi email chỉ được làm 1 lần mỗi tháng.`
+      const prev = data[0];
+      setError(
+        `Bạn đã làm bài của ${formatPeriodLabel(getCurrentPeriod())} rồi (đạt ${prev.score}/${prev.total} điểm). Mỗi người chỉ được làm 1 lần mỗi tháng.`
       );
-      setStatus("error");
       return;
     }
-    loadQuestions();
+
+    localStorage.setItem("quiz_user_name", selected.full_name);
+    localStorage.setItem("quiz_user_email", selected.email);
+    router.push("/quiz");
   }
-
-  async function loadQuestions() {
-    const { data, error } = await supabase.from("questions").select("*");
-
-    if (error) {
-      setErrorMsg(error.message);
-      setStatus("error");
-      return;
-    }
-    if (!data || data.length === 0) {
-      setErrorMsg(
-        "Chưa có câu hỏi nào trong bảng 'questions'. Hãy thêm câu hỏi trong Supabase trước."
-      );
-      setStatus("error");
-      return;
-    }
-    setQuestions(pickEvenlyAcrossCategories(data, QUESTIONS_PER_QUIZ));
-    startTimeRef.current = Date.now();
-    setStatus("playing");
-  }
-
-  function handleSelect(index) {
-    if (selected !== null) return; // đã chọn rồi thì khoá lại
-    setSelected(index);
-    const q = questions[current];
-    const isCorrect = index === q.correct_index;
-    if (isCorrect) {
-      setScore((s) => s + 1);
-    }
-    setUserAnswers((prev) => [
-      ...prev,
-      {
-        question_id: q.id,
-        question_text: q.question_text,
-        options: q.options,
-        selected_index: index,
-        correct_index: q.correct_index,
-        is_correct: isCorrect,
-      },
-    ]);
-  }
-
-  async function handleNext() {
-    if (current + 1 < questions.length) {
-      setCurrent((c) => c + 1);
-      setSelected(null);
-    } else {
-      await finishQuiz();
-    }
-  }
-
-  async function finishQuiz() {
-    setSaving(true);
-    const durationSeconds = startTimeRef.current
-      ? Math.round((Date.now() - startTimeRef.current) / 1000)
-      : null;
-    const { error } = await supabase.from("quiz_results").insert({
-      user_name: userName,
-      email: userEmail,
-      score,
-      total: questions.length,
-      answers: userAnswers,
-      duration_seconds: durationSeconds,
-      period: getCurrentPeriod(),
-    });
-    setSaving(false);
-    if (error) {
-      setErrorMsg(
-        "Đã chấm điểm xong nhưng lưu kết quả bị lỗi: " + error.message
-      );
-    }
-    const finalPercent = Math.round((score / questions.length) * 100);
-    setResultMessage(getResultMessage(finalPercent));
-    setStatus("finished");
-  }
-
-  if (status === "loading") {
-    return (
-      <div className="card">
-        <p>Đang tải câu hỏi...</p>
-      </div>
-    );
-  }
-
-  if (status === "error") {
-    return (
-      <div className="card">
-        <div className="error-box">{errorMsg}</div>
-        <a href="/">← Quay lại trang chủ</a>
-      </div>
-    );
-  }
-
-  if (status === "finished") {
-    const percent = Math.round((score / questions.length) * 100);
-    return (
-      <div className="card">
-        <div className="eyebrow">Kết quả</div>
-        <h2>Xong rồi, {userName}!</h2>
-        {errorMsg && <div className="error-box">{errorMsg}</div>}
-        <ScoreGauge percent={percent} label={`${score}/${questions.length} CÂU ĐÚNG`} />
-        <div className="link-row">
-          <a href="/practice">
-            <button className="btn-secondary">Ôn tập thêm</button>
-          </a>
-          <a href="/results">
-            <button className="btn-primary">Xem lịch sử</button>
-          </a>
-        </div>
-      </div>
-    );
-  }
-
-  const q = questions[current];
 
   return (
-    <div className="card">
-      <div className="progress-track">
-        <div
-          className="progress-fill"
-          style={{ width: `${((current + 1) / questions.length) * 100}%` }}
-        />
-      </div>
-      <div className="eyebrow">
-        Câu {current + 1}/{questions.length}
-      </div>
-      <h2>{q.question_text}</h2>
+    <div className="card" style={{ maxWidth: 620 }}>
+      <div className="eyebrow">Bài Test Kiến Thức</div>
+      <h1>Bạn hiểu bao nhiêu về chủ đề này?</h1>
+      <p>
+        Gõ tên hoặc email để tìm đúng bạn trong danh sách rồi bắt đầu. Mỗi lượt
+        có 25 câu hỏi ngẫu nhiên, tự chấm điểm. Mỗi người chỉ được làm{" "}
+        <strong>1 lần mỗi tháng</strong>.
+      </p>
 
-      {q.image_url && (
-        <img
-          src={q.image_url}
-          alt="Ảnh minh hoạ câu hỏi"
-          className="question-image"
-        />
+      {!windowStatus.open && (
+        <div className="error-box">{formatWindowMessage(windowStatus)}</div>
       )}
 
-      {q.options.map((opt, i) => {
-        let className = "option";
-        if (selected !== null) {
-          if (i === q.correct_index) className += " correct";
-          else if (i === selected) className += " wrong";
-        }
-        return (
-          <button
-            key={i}
-            className={className}
-            onClick={() => handleSelect(i)}
-          >
-            {opt}
-          </button>
-        );
-      })}
+      <form onSubmit={handleStart}>
+        {error && <div className="error-box">{error}</div>}
 
-      {selected !== null && q.explanation && (
-        <div
-          style={{
-            background: "#0d1620",
-            border: "1px solid var(--panel-border)",
-            borderRadius: 10,
-            padding: "12px 14px",
-            marginTop: 4,
-            marginBottom: 16,
-            fontSize: 14,
-            color: "var(--text-dim)",
-          }}
-        >
-          <strong style={{ color: "var(--amber)" }}>Giải thích: </strong>
-          {q.explanation}
+        <label htmlFor="who">Tên hoặc email của bạn</label>
+        <div className="combobox" ref={boxRef}>
+          <input
+            id="who"
+            className="field"
+            style={{ marginBottom: showList && matches.length > 0 ? 0 : 18 }}
+            type="text"
+            autoComplete="off"
+            placeholder={loadingUsers ? "Đang tải danh sách..." : "Gõ để tìm tên..."}
+            value={query}
+            onChange={(e) => handleQueryChange(e.target.value)}
+            onFocus={() => setShowList(true)}
+            disabled={!windowStatus.open || loadingUsers}
+          />
+          {showList && query.trim() && matches.length > 0 && (
+            <div className="combobox-list">
+              {matches.map((u) => (
+                <div key={u.id} className="combobox-item" onClick={() => handlePick(u)}>
+                  {u.full_name}
+                  <span className="email">{u.email}</span>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
-      )}
+        {showList && query.trim() && matches.length > 0 && <div style={{ height: 18 }} />}
 
-      <button
-        className="btn-primary"
-        disabled={selected === null || saving}
-        onClick={handleNext}
-        style={{ marginTop: 12 }}
-      >
-        {saving
-          ? "Đang lưu..."
-          : current + 1 < questions.length
-          ? "Câu tiếp theo"
-          : "Nộp bài"}
-      </button>
+        <button
+          type="submit"
+          className="btn-primary"
+          disabled={checking || !windowStatus.open || loadingUsers}
+        >
+          {checking ? "Đang kiểm tra..." : "Bắt đầu làm bài"}
+        </button>
+      </form>
+
+      <div className="nav-section-label">Luyện tập</div>
+      <div className="nav-grid">
+        <a href="/practice" className="nav-tile featured">
+          <span className="nav-tile-icon">
+            <BookOpen size={18} />
+          </span>
+          <span className="nav-tile-label">Ôn tập trước khi thi</span>
+        </a>
+      </div>
+
+      <div className="nav-section-label">Khu vực quản trị (cần mật khẩu)</div>
+      <div className="nav-grid">
+        <a href="/results" className="nav-tile">
+          <span className="nav-tile-icon">
+            <History size={18} />
+          </span>
+          <span className="nav-tile-label">Lịch sử kết quả</span>
+        </a>
+        <a href="/report" className="nav-tile">
+          <span className="nav-tile-icon">
+            <ClipboardList size={18} />
+          </span>
+          <span className="nav-tile-label">Báo cáo tổng hợp</span>
+        </a>
+        <a href="/dashboard" className="nav-tile">
+          <span className="nav-tile-icon">
+            <LayoutDashboard size={18} />
+          </span>
+          <span className="nav-tile-label">Dashboard</span>
+        </a>
+        <a href="/admin-questions" className="nav-tile">
+          <span className="nav-tile-icon">
+            <ListChecks size={18} />
+          </span>
+          <span className="nav-tile-label">Quản lý câu hỏi</span>
+        </a>
+        <a href="/admin-users" className="nav-tile">
+          <span className="nav-tile-icon">
+            <Users size={18} />
+          </span>
+          <span className="nav-tile-label">Quản lý người dùng</span>
+        </a>
+      </div>
     </div>
   );
 }
+
+
