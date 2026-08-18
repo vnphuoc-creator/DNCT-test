@@ -1,5 +1,56 @@
 # Bài Test Kiến Thức — Hướng dẫn cho người mới
 
+## Đã xong: Dashboard nâng cấp (theo ngày, danh sách chưa làm bài, xuất PDF) + Chatbot tra cứu câu hỏi
+
+### 1. Dashboard nâng cấp
+
+Bố cục lại theo đúng kiểu bảng điều khiển đầy đủ:
+- Số người tham gia làm bài **theo từng ngày** (trước đây chỉ theo thứ tự nộp bài)
+- Điểm trung bình theo từng ngày
+- Số lượng Đạt/Không đạt theo từng ngày (2 đường riêng biệt)
+- **Điểm cá nhân**: biểu đồ cột ngang liệt kê tên + điểm từng người trong kỳ đang chọn
+- **Những người chưa làm bài kiểm tra**: so sánh danh sách đã đăng ký (trang Quản lý người dùng)
+  với ai đã nộp bài trong kỳ đang chọn, liệt kê những ai còn thiếu
+- Vẫn giữ: phân bố điểm số, top câu hỏi hay sai, các số liệu tổng quan
+
+**Nút "In / Xuất PDF"** mới ở đầu trang — bấm vào sẽ mở hộp thoại in của trình duyệt, chọn
+**"Lưu thành PDF"** (Save as PDF) là ra file PDF đẹp, đã tự ẩn các nút bấm/điều hướng không cần
+thiết. Lưu ý: trong hộp thoại in, nhớ bật tuỳ chọn **"Đồ hoạ nền" / "Background graphics"** để
+giữ đúng màu sắc khi in.
+
+Không cần cấu hình hay chạy SQL gì thêm — chỉ cần upload code mới lên GitHub.
+
+### 2. Chatbot tra cứu câu hỏi (góc dưới bên phải màn hình)
+
+Nút chat 💬 hiện ở mọi trang, ai cũng dùng được (không cần đăng nhập). Người dùng gõ câu hỏi tự
+nhiên (ví dụ: "có câu nào về turbo máy phát không?", "đáp án đúng của câu về máy cắt 471 là gì?"),
+chatbot sẽ tìm trong đúng ngân hàng câu hỏi thật rồi trả lời — **không bịa thêm câu hỏi/đáp án**
+ngoài dữ liệu thật đã có.
+
+**Chatbot CHỈ đọc được bảng câu hỏi** (nội dung vốn công khai sẵn ở trang Ôn tập) — không truy cập
+được điểm số hay thông tin cá nhân của bất kỳ ai.
+
+**Bắt buộc phải làm để chatbot hoạt động** — đây là tính năng duy nhất từ trước giờ **có phát
+sinh phí nhỏ** (khác với mọi phần khác của web đều $0):
+
+1. Vào https://console.anthropic.com, tạo tài khoản (nếu chưa có)
+2. Vào mục **API Keys** → tạo khoá mới → copy lại (khoá dạng `sk-ant-...`)
+3. Nạp một khoản tiền nhỏ vào tài khoản (Anthropic tính phí theo lượt dùng, không phải phí thuê
+   bao cố định — với quy mô vài chục người dùng thỉnh thoảng hỏi vài câu, chi phí thực tế thường
+   chỉ khoảng vài chục nghìn đồng/tháng, có thể theo dõi chi tiêu trực tiếp trong console)
+4. Vào Vercel → project → Settings → Environment Variables → thêm:
+
+   | Key | Value |
+   |---|---|
+   | `ANTHROPIC_API_KEY` | Khoá vừa tạo ở bước 2 |
+
+5. **Redeploy**
+
+Nếu chưa muốn dùng chatbot ngay, có thể bỏ qua bước này — nút chat vẫn hiện nhưng sẽ báo lỗi rõ
+ràng khi bấm gửi, không ảnh hưởng gì tới các phần khác của web.
+
+---
+
 Đây là một web bài test kiến thức hoàn chỉnh:
 - Câu hỏi được trộn ngẫu nhiên
 - Tự chấm điểm

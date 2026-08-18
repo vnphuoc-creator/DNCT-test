@@ -1,5 +1,6 @@
 import "./globals.css";
 import FlyingPlane from "./components/FlyingPlane";
+import ChatWidget from "./components/ChatWidget";
 
 export const metadata = {
   metadataBase: process.env.NEXT_PUBLIC_SITE_URL
@@ -31,6 +32,7 @@ export default function RootLayout({ children }) {
           <img src="/logo.png" alt="Logo công ty" />
         </a>
         <div className="shell">{children}</div>
+        <ChatWidget />
       </body>
     </html>
   );
