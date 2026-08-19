@@ -1,6 +1,6 @@
 {
   "name": "DNCT Test Quiz App",
-  "description": "Interactive quiz and practice assessment system for DNCT",
+  "description": "Hệ thống kiểm tra và báo cáo đánh giá năng lực kỹ thuật định kỳ - Đội ĐNCT (AHT)",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }

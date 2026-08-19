@@ -48,6 +48,7 @@ function AdminLoginForm() {
           id="password"
           className="field"
           type="password"
+          suppressHydrationWarning
           placeholder="Nhập mật khẩu"
           value={password}
           onChange={(e) => setPassword(e.target.value)}

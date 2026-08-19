@@ -25,7 +25,7 @@ export default function RootLayout({ children }) {
           rel="stylesheet"
         />
       </head>
-      <body>
+      <body suppressHydrationWarning>
         <FlyingPlane />
         <a href="/" className="brand-badge no-print">
           <img src="/logo.png" alt="Logo công ty" />

@@ -213,6 +213,29 @@ export default function ReportPage() {
 
   return (
     <div className="card dashboard-print-area" style={{ maxWidth: 1100, width: "100%" }}>
+      {/* Official Enterprise Print Header (Hiển thị Logo AHT & Tiêu đề cơ quan chính quy) */}
+      <div className="print-official-header" style={{ display: "none" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
+          <img src="/logo.png" alt="AHT Logo" style={{ height: 48, width: "auto", objectFit: "contain" }} />
+          <div>
+            <div style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", color: "#0284c7" }}>
+              CÔNG TY CỔ PHẦN ĐẦU TƯ KHAI THÁC NHÀ GA QUỐC TẾ ĐÀ NẴNG (AHT)
+            </div>
+            <div style={{ fontSize: 10, fontWeight: 600, color: "#475569" }}>
+              PHÒNG KỸ THUẬT — ĐỘI ĐIỆN NƯỚC CÔNG TRÌNH (ĐNCT)
+            </div>
+          </div>
+        </div>
+        <div style={{ textAlign: "right" }}>
+          <div style={{ fontSize: 12, fontWeight: 700, color: "#0f172a" }}>
+            KỲ: {selectedPeriod === "all" ? "TẤT CẢ CÁC KỲ" : formatPeriodLabel(selectedPeriod).toUpperCase()}
+          </div>
+          <div style={{ fontSize: 10, color: "#64748b" }}>
+            Ngày lập: {new Date().toLocaleDateString("vi-VN")}
+          </div>
+        </div>
+      </div>
+
       {/* Header */}
       <div
         style={{
@@ -226,16 +249,21 @@ export default function ReportPage() {
           gap: 12,
         }}
       >
-        <div>
-          <div className="eyebrow" style={{ color: "var(--amber)", letterSpacing: "0.08em" }}>
-            BÁO CÁO DỮ LIỆU CHI TIẾT
+        <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+          <div className="no-print" style={{ background: "rgba(255,255,255,0.95)", padding: "4px 8px", borderRadius: 6, display: "flex", alignItems: "center" }}>
+            <img src="/logo.png" alt="AHT" style={{ height: 28, width: "auto" }} />
           </div>
-          <h1 style={{ margin: "4px 0 0 0", fontSize: 24, fontWeight: 700 }}>
-            Hồ sơ Đánh giá Kiểm tra Đội ĐNCT
-          </h1>
-          <p style={{ margin: "4px 0 0 0", fontSize: 14, color: "var(--text-dim)" }}>
-            Báo cáo lưu trữ kết quả và chi tiết câu trả lời của từng nhân sự
-          </p>
+          <div>
+            <div className="eyebrow" style={{ color: "var(--brand-cyan)", letterSpacing: "0.08em" }}>
+              BÁO CÁO DỮ LIỆU CHI TIẾT
+            </div>
+            <h1 style={{ margin: "2px 0 0 0", fontSize: 22, fontWeight: 800 }}>
+              Hồ sơ Đánh giá Kiểm tra Đội ĐNCT
+            </h1>
+            <p style={{ margin: "2px 0 0 0", fontSize: 13.5, color: "var(--text-dim)" }}>
+              Báo cáo lưu trữ kết quả và chi tiết câu trả lời của từng nhân sự
+            </p>
+          </div>
         </div>
 
         <div className="no-print" style={{ display: "flex", gap: 10, alignItems: "center" }}>
@@ -503,6 +531,25 @@ export default function ReportPage() {
                 })}
               </tbody>
             </table>
+          </div>
+
+          {/* Official Enterprise Print Footer (Chữ ký xác nhận 3 cấp) */}
+          <div className="print-official-footer" style={{ display: "none" }}>
+            <div>
+              <div style={{ fontWeight: 700, fontSize: 11, textTransform: "uppercase" }}>NGƯỜI LẬP BÁO CÁO</div>
+              <div style={{ fontSize: 9, color: "#64748b", fontStyle: "italic", marginTop: 2 }}>(Ký và ghi rõ họ tên)</div>
+              <div style={{ height: 55 }} />
+            </div>
+            <div>
+              <div style={{ fontWeight: 700, fontSize: 11, textTransform: "uppercase" }}>ĐỘI TRƯỞNG ĐỘI ĐNCT</div>
+              <div style={{ fontSize: 9, color: "#64748b", fontStyle: "italic", marginTop: 2 }}>(Ký và ghi rõ họ tên)</div>
+              <div style={{ height: 55 }} />
+            </div>
+            <div>
+              <div style={{ fontWeight: 700, fontSize: 11, textTransform: "uppercase" }}>TRƯỞNG PHÒNG KỸ THUẬT</div>
+              <div style={{ fontSize: 9, color: "#64748b", fontStyle: "italic", marginTop: 2 }}>(Ký duyệt)</div>
+              <div style={{ height: 55 }} />
+            </div>
           </div>
         </div>
       )}

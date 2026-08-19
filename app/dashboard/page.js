@@ -17,18 +17,18 @@ import {
 import { supabase } from "../../lib/supabaseClient";
 import { getCurrentPeriod, formatPeriodLabel } from "../../lib/period";
 
-const ACCENT = "#f5a623";
-const OK = "#45c4b0";
+const ACCENT = "#f59e0b";
+const OK = "#10b981";
 const WARNING = "#f59e0b";
-const DANGER = "#e5484d";
-const DIM = "#8fa0ae";
-const DARK_BG = "#0d1620";
+const DANGER = "#f43f5e";
+const DIM = "#94a3b8";
+const DARK_BG = "#0f172a";
 
 const tooltipStyle = {
-  background: "#171f28",
-  border: "1px solid #2a3542",
+  background: "#1e293b",
+  border: "1px solid #334155",
   borderRadius: "8px",
-  color: "#eef2f5",
+  color: "#f8fafc",
   fontSize: "13px",
 };
 
@@ -63,6 +63,7 @@ export default function DashboardPage() {
       setStatus("error");
       return;
     }
+
     setAllResults(resultsRes.data || []);
     setAllowedUsers(usersRes.data || []);
     setStatus("ready");
@@ -78,24 +79,13 @@ export default function DashboardPage() {
     return allResults.filter((r) => (r.period || "khong-ro") === selectedPeriod);
   }, [allResults, selectedPeriod]);
 
-  // ---- TÍNH TOÁN DỮ LIỆU BÁO CÁO DÀNH CHO QUẢN LÝ ----
+  // Phân tích dữ liệu báo cáo chuyên môn
   const managerData = useMemo(() => {
-    const totalAllowed = allowedUsers.length;
+    const totalAllowed = allowedUsers.length || 1;
     const totalDone = results.length;
-    const completionRate = totalAllowed > 0 ? Math.round((totalDone / totalAllowed) * 100) : 0;
+    const completionRate = Math.min(100, Math.round((totalDone / totalAllowed) * 100));
 
-    if (results.length === 0) {
-      const notDoneList = allowedUsers.map((u) => ({
-        id: u.id,
-        name: u.full_name,
-        email: u.email,
-        status: "not_done",
-        scoreText: "—",
-        scorePercent: 0,
-        tier: "Chưa tham gia",
-        duration: "—",
-        submittedAt: "—",
-      }));
+    if (totalDone === 0) {
       return {
         totalAllowed,
         totalDone: 0,
@@ -104,138 +94,146 @@ export default function DashboardPage() {
         avgScore: 0,
         maxScore: 0,
         minScore: 0,
-        avgDurationSec: null,
+        avgDurationSec: 0,
         tierDistribution: [],
         systemCompetency: [],
-        hardestQuestions: [],
-        personnelList: notDoneList,
-        passCount: 0,
-        failCount: 0,
-        notDoneCount: totalAllowed,
         weakestSystems: [],
+        hardestQuestions: [],
+        personnelList: [],
       };
     }
 
-    const percents = results.map((r) => (r.total > 0 ? Math.round((r.score / r.total) * 100) : 0));
-    const avgScore = (percents.reduce((a, b) => a + b, 0) / percents.length).toFixed(1);
-    const maxScore = Math.max(...percents);
-    const minScore = Math.min(...percents);
+    // 1. Phân loại theo thang điểm năng lực
+    let excellentCount = 0; // >= 90%
+    let passCount = 0; // 80% - 89%
+    let averageCount = 0; // 65% - 79%
+    let failCount = 0; // < 65%
 
-    const durations = results.filter((r) => r.duration_seconds != null).map((r) => r.duration_seconds);
-    const avgDurationSec = durations.length
-      ? Math.round(durations.reduce((a, b) => a + b, 0) / durations.length)
-      : null;
+    let totalScorePercent = 0;
+    let maxScore = 0;
+    let minScore = 100;
+    let totalDuration = 0;
+    let durationCount = 0;
 
-    // Phân loại xếp hạng chuyên môn (Chuẩn đánh giá: Xuất sắc >=90%, Đạt >=80%, Cần rèn luyện <80%)
-    let excellentCount = 0;
-    let passCount = 0;
-    let averageCount = 0;
-    let weakCount = 0;
-
-    for (const p of percents) {
-      if (p >= 90) excellentCount++;
-      else if (p >= 80) passCount++;
-      else if (p >= 65) averageCount++;
-      else weakCount++;
-    }
-
-    const standardPassCount = excellentCount + passCount; // Điểm >= 80%
-    const standardPassRate = results.length > 0 ? Math.round((standardPassCount / results.length) * 100) : 0;
-
-    const tierDistribution = [
-      { name: "Xuất sắc (≥90%)", value: excellentCount, color: OK },
-      { name: "Đạt chuẩn (80-89%)", value: passCount, color: "#38bdf8" },
-      { name: "Trung bình (65-79%)", value: averageCount, color: WARNING },
-      { name: "Cần đào tạo lại (<65%)", value: weakCount, color: DANGER },
-    ].filter((t) => t.value > 0);
-
-    // ---- Phân tích năng lực theo từng Hệ thống Kỹ thuật ----
-    const categoryStats = {};
+    // 2. Thống kê theo Hệ thống chuyên môn
+    const systemStats = {};
     const questionStats = {};
 
-    for (const r of results) {
+    results.forEach((r) => {
+      const percent = r.total > 0 ? (r.score / r.total) * 100 : 0;
+      totalScorePercent += percent;
+      if (percent > maxScore) maxScore = percent;
+      if (percent < minScore) minScore = percent;
+
+      if (r.duration_seconds) {
+        totalDuration += r.duration_seconds;
+        durationCount += 1;
+      }
+
+      if (percent >= 90) excellentCount += 1;
+      else if (percent >= 80) passCount += 1;
+      else if (percent >= 65) averageCount += 1;
+      else failCount += 1;
+
+      // Chi tiết từng câu hỏi và hệ thống
       const answers = r.answers || [];
-      for (const a of answers) {
-        // Thống kê câu hỏi
-        const qKey = a.question_text || `#${a.question_id}`;
+      answers.forEach((ans) => {
+        const sys = ans.category || "Hệ thống chung";
+        if (!systemStats[sys]) {
+          systemStats[sys] = { correct: 0, total: 0 };
+        }
+        systemStats[sys].total += 1;
+        if (ans.is_correct) systemStats[sys].correct += 1;
+
+        // Thống kê câu hỏi khó
+        const qKey = ans.question_text || `#${ans.question_id}`;
         if (!questionStats[qKey]) {
           questionStats[qKey] = {
             question: qKey,
+            category: sys,
             wrong: 0,
             total: 0,
-            options: a.options || [],
-            correct_index: a.correct_index,
+            options: ans.options || [],
+            correctIndex: ans.correct_index,
           };
         }
         questionStats[qKey].total += 1;
-        if (!a.is_correct) {
-          questionStats[qKey].wrong += 1;
-        }
+        if (!ans.is_correct) questionStats[qKey].wrong += 1;
+      });
+    });
 
-        // Thống kê theo hệ thống (từ category nếu có trong answer hoặc suy luận)
-        const cat = a.category || "Hệ thống chung";
-        if (!categoryStats[cat]) {
-          categoryStats[cat] = { correct: 0, total: 0 };
-        }
-        categoryStats[cat].total += 1;
-        if (a.is_correct) {
-          categoryStats[cat].correct += 1;
-        }
-      }
-    }
+    const avgScore = (totalScorePercent / totalDone).toFixed(1);
+    const avgDurationSec = durationCount > 0 ? Math.round(totalDuration / durationCount) : 0;
+    const standardPassCount = excellentCount + passCount;
+    const standardPassRate = Math.round((standardPassCount / totalDone) * 100);
 
-    const systemCompetency = Object.entries(categoryStats)
-      .map(([name, stat]) => {
-        const accuracy = stat.total > 0 ? Math.round((stat.correct / stat.total) * 100) : 0;
+    // Dữ liệu biểu đồ phân bố xếp loại
+    const tierDistribution = [
+      { name: "Xuất sắc (≥90%)", value: excellentCount, color: "#10b981", percent: Math.round((excellentCount / totalDone) * 100) },
+      { name: "Đạt chuẩn (80-89%)", value: passCount, color: "#0284c7", percent: Math.round((passCount / totalDone) * 100) },
+      { name: "Trung bình (65-79%)", value: averageCount, color: "#f59e0b", percent: Math.round((averageCount / totalDone) * 100) },
+      { name: "Cần đào tạo lại (<65%)", value: failCount, color: "#f43f5e", percent: Math.round((failCount / totalDone) * 100) },
+    ].filter((t) => t.value > 0);
+
+    // Năng lực theo hệ thống
+    const systemCompetency = Object.entries(systemStats)
+      .map(([name, s]) => {
+        const passPct = s.total > 0 ? Math.round((s.correct / s.total) * 100) : 0;
         return {
           name,
-          accuracy,
-          totalAnswers: stat.total,
-          wrongAnswers: stat.total - stat.correct,
+          correct: s.correct,
+          total: s.total,
+          passPct,
+          status: passPct >= 80 ? "Đạt" : passPct >= 65 ? "Cảnh báo" : "Yếu",
         };
       })
-      .sort((a, b) => a.accuracy - b.accuracy); // Tăng dần để thấy hệ thống yếu nhất trước
+      .sort((a, b) => a.passPct - b.passPct);
 
-    const weakestSystems = systemCompetency.filter((s) => s.accuracy < 80).slice(0, 3);
+    const weakestSystems = systemCompetency.filter((s) => s.passPct < 80);
 
-    // Top các câu hỏi sai nhiều nhất
+    // Top câu hỏi hay sai
     const hardestQuestions = Object.values(questionStats)
-      .filter((q) => q.wrong > 0)
       .map((q) => ({
         ...q,
         wrongRate: q.total > 0 ? Math.round((q.wrong / q.total) * 100) : 0,
       }))
+      .filter((q) => q.wrong > 0)
       .sort((a, b) => b.wrongRate - a.wrongRate || b.wrong - a.wrong)
-      .slice(0, 8);
+      .slice(0, 10);
 
-    // ---- Danh sách nhân sự & trạng thái ----
+    // Danh sách nhân sự & tiến độ làm bài
     const doneMap = new Map();
     for (const r of results) {
       const email = (r.email || "").toLowerCase().trim();
-      const percent = r.total > 0 ? Math.round((r.score / r.total) * 100) : 0;
+      const scorePct = r.total > 0 ? Math.round((r.score / r.total) * 100) : 0;
       let tier = "Cần đào tạo lại";
       let tierClass = "badge-fail";
-      if (percent >= 90) {
+      let status = "fail";
+
+      if (scorePct >= 90) {
         tier = "Xuất sắc";
         tierClass = "badge-excellent";
-      } else if (percent >= 80) {
+        status = "pass";
+      } else if (scorePct >= 80) {
         tier = "Đạt chuẩn";
         tierClass = "badge-pass";
-      } else if (percent >= 65) {
+        status = "pass";
+      } else if (scorePct >= 65) {
         tier = "Trung bình";
         tierClass = "badge-fail";
+        status = "fail";
       }
 
-      doneMap.set(email, {
+      doneMap.set(email || r.user_name, {
         id: r.id,
         name: r.user_name,
         email: r.email,
         score: r.score,
         total: r.total,
-        scorePercent: percent,
+        scorePercent: scorePct,
         tier,
         tierClass,
-        status: percent >= 80 ? "pass" : "fail",
+        status,
         duration: formatDuration(r.duration_seconds),
         submittedAt: new Date(r.created_at).toLocaleString("vi-VN", {
           day: "2-digit",
@@ -324,7 +322,7 @@ export default function DashboardPage() {
   if (status === "loading") {
     return (
       <div className="card" style={{ textAlign: "center", padding: "40px" }}>
-        <p style={{ color: "var(--amber)", fontSize: 16 }}>Đang xử lý và tổng hợp dữ liệu báo cáo...</p>
+        <p style={{ color: "var(--brand-cyan)", fontSize: 16 }}>Đang xử lý và tổng hợp dữ liệu báo cáo...</p>
       </div>
     );
   }
@@ -340,7 +338,30 @@ export default function DashboardPage() {
 
   return (
     <div className="card dashboard-print-area" style={{ maxWidth: 1100, width: "100%" }}>
-      {/* Header báo cáo quản trị */}
+      {/* Official Enterprise Print Header (Hiển thị Logo AHT & Tiêu đề cơ quan chính quy) */}
+      <div className="print-official-header" style={{ display: "none" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
+          <img src="/logo.png" alt="AHT Logo" style={{ height: 48, width: "auto", objectFit: "contain" }} />
+          <div>
+            <div style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", color: "#0284c7" }}>
+              CÔNG TY CỔ PHẦN ĐẦU TƯ KHAI THÁC NHÀ GA QUỐC TẾ ĐÀ NẴNG (AHT)
+            </div>
+            <div style={{ fontSize: 10, fontWeight: 600, color: "#475569" }}>
+              PHÒNG KỸ THUẬT — ĐỘI ĐIỆN NƯỚC CÔNG TRÌNH (ĐNCT)
+            </div>
+          </div>
+        </div>
+        <div style={{ textAlign: "right" }}>
+          <div style={{ fontSize: 12, fontWeight: 700, color: "#0f172a" }}>
+            KỲ: {selectedPeriod === "all" ? "TẤT CẢ CÁC KỲ" : formatPeriodLabel(selectedPeriod).toUpperCase()}
+          </div>
+          <div style={{ fontSize: 10, color: "#64748b" }}>
+            Ngày lập: {new Date().toLocaleDateString("vi-VN")}
+          </div>
+        </div>
+      </div>
+
+      {/* On-screen Header */}
       <div
         style={{
           display: "flex",
@@ -353,16 +374,21 @@ export default function DashboardPage() {
           gap: 12,
         }}
       >
-        <div>
-          <div className="eyebrow" style={{ color: "var(--amber)", letterSpacing: "0.08em" }}>
-            BÁO CÁO QUẢN TRỊ & ĐÁNH GIÁ NĂNG LỰC KỸ THUẬT
+        <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+          <div className="no-print" style={{ background: "rgba(255,255,255,0.95)", padding: "4px 8px", borderRadius: 6, display: "flex", alignItems: "center" }}>
+            <img src="/logo.png" alt="AHT" style={{ height: 28, width: "auto" }} />
           </div>
-          <h1 style={{ margin: "4px 0 0 0", fontSize: 24, fontWeight: 700 }}>
-            Kết quả Đánh giá Nội bộ Đội ĐNCT
-          </h1>
-          <p style={{ margin: "4px 0 0 0", fontSize: 14, color: "var(--text-dim)" }}>
-            Báo cáo chuyên môn bám sát năng lực thực tế của nhân sự tham gia làm bài
-          </p>
+          <div>
+            <div className="eyebrow" style={{ color: "var(--brand-cyan)", letterSpacing: "0.08em" }}>
+              BÁO CÁO QUẢN TRỊ & ĐÁNH GIÁ NĂNG LỰC KỸ THUẬT
+            </div>
+            <h1 style={{ margin: "2px 0 0 0", fontSize: 22, fontWeight: 800 }}>
+              Kết quả Đánh giá Năng lực Nội bộ Đội ĐNCT
+            </h1>
+            <p style={{ margin: "2px 0 0 0", fontSize: 13.5, color: "var(--text-dim)" }}>
+              Phân tích chỉ số hoàn thành, tỷ lệ đạt chuẩn và phát hiện lỗ hổng chuyên môn
+            </p>
+          </div>
         </div>
 
         {/* Bộ điều khiển & In báo cáo */}
@@ -424,19 +450,19 @@ export default function DashboardPage() {
                 textAlign: "center",
               }}
             >
-              <div style={{ fontSize: 24, fontWeight: 700, color: "var(--amber)", fontFamily: "var(--font-mono)" }}>
+              <div style={{ fontSize: 24, fontWeight: 800, color: "var(--brand-cyan)", fontFamily: "var(--font-mono)" }}>
                 {managerData.totalDone}
                 <span style={{ fontSize: 14, color: "var(--text-dim)", fontWeight: 400 }}>
                   /{managerData.totalAllowed}
                 </span>
               </div>
-              <div style={{ fontSize: 12, color: "var(--text-dim)", marginTop: 4, textTransform: "uppercase" }}>
+              <div style={{ fontSize: 12, color: "var(--text-dim)", marginTop: 4, textTransform: "uppercase", fontWeight: 600 }}>
                 Tiến độ ({managerData.completionRate}%)
               </div>
               <div className="progress-track" style={{ marginTop: 8 }}>
                 <div
                   className="progress-fill"
-                  style={{ width: `${managerData.completionRate}%`, background: "var(--amber)" }}
+                  style={{ width: `${managerData.completionRate}%`, background: "var(--brand-cyan)" }}
                 />
               </div>
             </div>
@@ -451,14 +477,14 @@ export default function DashboardPage() {
                 textAlign: "center",
               }}
             >
-              <div style={{ fontSize: 24, fontWeight: 700, color: OK, fontFamily: "var(--font-mono)" }}>
+              <div style={{ fontSize: 24, fontWeight: 800, color: OK, fontFamily: "var(--font-mono)" }}>
                 {managerData.passRate}%
               </div>
-              <div style={{ fontSize: 12, color: "var(--text-dim)", marginTop: 4, textTransform: "uppercase" }}>
-                Tỷ lệ Đạt chuẩn (≥80%)
+              <div style={{ fontSize: 12, color: "var(--text-dim)", marginTop: 4, textTransform: "uppercase", fontWeight: 600 }}>
+                Đạt chuẩn ({managerData.passCount}/{managerData.totalDone})
               </div>
-              <div style={{ fontSize: 12, color: "var(--text-dim)", marginTop: 4 }}>
-                {managerData.passCount} đạt / {managerData.failCount} cần ôn
+              <div style={{ fontSize: 11, color: OK, marginTop: 4 }}>
+                {managerData.passRate >= 80 ? "✓ Đạt chỉ tiêu đội" : "⚠ Cần bổ sung đào tạo"}
               </div>
             </div>
 
@@ -472,13 +498,13 @@ export default function DashboardPage() {
                 textAlign: "center",
               }}
             >
-              <div style={{ fontSize: 24, fontWeight: 700, color: "#38bdf8", fontFamily: "var(--font-mono)" }}>
+              <div style={{ fontSize: 24, fontWeight: 800, color: "var(--amber)", fontFamily: "var(--font-mono)" }}>
                 {managerData.avgScore}%
               </div>
-              <div style={{ fontSize: 12, color: "var(--text-dim)", marginTop: 4, textTransform: "uppercase" }}>
-                Điểm trung bình toàn đội
+              <div style={{ fontSize: 12, color: "var(--text-dim)", marginTop: 4, textTransform: "uppercase", fontWeight: 600 }}>
+                Điểm TB toàn đội
               </div>
-              <div style={{ fontSize: 12, color: "var(--text-dim)", marginTop: 4 }}>
+              <div style={{ fontSize: 11, color: "var(--text-dim)", marginTop: 4 }}>
                 Cao nhất: {managerData.maxScore}% | Thấp: {managerData.minScore}%
               </div>
             </div>
@@ -493,45 +519,85 @@ export default function DashboardPage() {
                 textAlign: "center",
               }}
             >
-              <div style={{ fontSize: 24, fontWeight: 700, color: "var(--text)", fontFamily: "var(--font-mono)" }}>
-                {managerData.avgDurationSec != null ? formatDuration(managerData.avgDurationSec) : "—"}
+              <div style={{ fontSize: 24, fontWeight: 800, color: "#38bdf8", fontFamily: "var(--font-mono)" }}>
+                {formatDuration(managerData.avgDurationSec)}
               </div>
-              <div style={{ fontSize: 12, color: "var(--text-dim)", marginTop: 4, textTransform: "uppercase" }}>
+              <div style={{ fontSize: 12, color: "var(--text-dim)", marginTop: 4, textTransform: "uppercase", fontWeight: 600 }}>
                 Thời gian làm bài TB
               </div>
-              <div style={{ fontSize: 12, color: "var(--text-dim)", marginTop: 4 }}>
-                Quy định tối đa: 25 câu
+              <div style={{ fontSize: 11, color: "var(--text-dim)", marginTop: 4 }}>
+                Quy định tối đa: 30 phút
               </div>
             </div>
           </div>
 
-          {/* Cảnh báo trọng tâm cho Quản lý nếu có hệ thống yếu */}
-          {managerData.weakestSystems.length > 0 && (
-            <div
-              style={{
-                background: "rgba(245, 158, 11, 0.1)",
-                border: "1px solid rgba(245, 158, 11, 0.35)",
-                borderRadius: 8,
-                padding: "12px 16px",
-                marginBottom: 24,
-                display: "flex",
-                alignItems: "center",
-                gap: 12,
-              }}
-            >
-              <span style={{ fontSize: 20 }}>⚠️</span>
-              <div style={{ fontSize: 13, lineHeight: 1.5 }}>
-                <strong style={{ color: "var(--amber)" }}>Trọng tâm cần đào tạo nhắc nhở:</strong>{" "}
-                Tỷ lệ trả lời chính xác đang thấp ở các hệ thống:{" "}
-                {managerData.weakestSystems.map((s) => `${s.name} (${s.accuracy}%)`).join(", ")}. Quản lý
-                nên bổ sung kiến thức các phần này trong buổi giao ban tới.
-              </div>
+          {/* Phân tích hệ thống & Cảnh báo quản lý */}
+          <div
+            style={{
+              background: DARK_BG,
+              border: "1px solid var(--panel-border)",
+              borderRadius: 10,
+              padding: "18px 20px",
+              marginBottom: 24,
+            }}
+          >
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+              <h2 style={{ fontSize: 16, margin: 0, fontWeight: 700 }}>
+                Đánh giá Tỷ lệ Đạt theo Từng Hệ thống Kỹ thuật
+              </h2>
+              <span style={{ fontSize: 12, color: "var(--text-dim)" }}>
+                Chuẩn đạt yêu cầu: <strong>≥80%</strong>
+              </span>
             </div>
-          )}
 
-          {/* Lưới phân tích trực quan: Phân loại Năng lực & Đánh giá Hệ thống */}
-          <div className="dash-grid" style={{ marginBottom: 28 }}>
-            {/* 1. Đánh giá tỷ lệ thành thạo theo Hệ thống Kỹ thuật */}
+            {/* Cảnh báo trọng tâm */}
+            {managerData.weakestSystems.length > 0 && (
+              <div
+                style={{
+                  background: "rgba(244, 63, 94, 0.1)",
+                  border: "1px solid rgba(244, 63, 94, 0.3)",
+                  borderRadius: 8,
+                  padding: "12px 14px",
+                  marginBottom: 16,
+                }}
+              >
+                <div style={{ fontWeight: 700, color: "#fb7185", fontSize: 13, display: "flex", alignItems: "center", gap: 6 }}>
+                  <span>⚠ CẢNH BÁO QUẢN LÝ: CÓ {managerData.weakestSystems.length} HỆ THỐNG CẦN ĐÀO TẠO BỔ SUNG</span>
+                </div>
+                <p style={{ margin: "4px 0 0 0", fontSize: 13, color: "#fecdd3" }}>
+                  Đội ngũ đang trả lời sai nhiều nhất tại:{" "}
+                  <strong>{managerData.weakestSystems.map((s) => `${s.name} (${s.passPct}%)`).join(", ")}</strong>.
+                  Đề xuất Quản lý đưa nội dung này vào buổi sinh hoạt chuyên môn hoặc giao ban đầu ca.
+                </p>
+              </div>
+            )}
+
+            {/* Thanh đo năng lực từng hệ thống */}
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: "12px 20px" }}>
+              {managerData.systemCompetency.map((sys) => {
+                const isPass = sys.passPct >= 80;
+                const isWarn = sys.passPct >= 65 && sys.passPct < 80;
+                const barColor = isPass ? OK : isWarn ? WARNING : DANGER;
+                return (
+                  <div key={sys.name} style={{ padding: "8px 0" }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13, marginBottom: 4 }}>
+                      <span style={{ fontWeight: 600, color: "var(--text)" }}>{sys.name}</span>
+                      <span style={{ fontFamily: "var(--font-mono)", fontWeight: 700, color: barColor }}>
+                        {sys.passPct}% ({sys.correct}/{sys.total} câu)
+                      </span>
+                    </div>
+                    <div className="progress-track" style={{ height: 8 }}>
+                      <div className="progress-fill" style={{ width: `${sys.passPct}%`, background: barColor }} />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Grid 2 cột: Biểu đồ xếp loại & Top câu hỏi khó */}
+          <div className="dash-grid" style={{ marginBottom: 24 }}>
+            {/* Cột 1: Phân bố Xếp loại */}
             <div
               className="chart-block"
               style={{
@@ -541,206 +607,146 @@ export default function DashboardPage() {
                 padding: "18px 16px",
               }}
             >
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
-                <h2 style={{ fontSize: 15, margin: 0, fontWeight: 600 }}>
-                  Đánh giá Năng lực theo Hệ thống
-                </h2>
-                <span style={{ fontSize: 11, color: "var(--text-dim)", textTransform: "uppercase" }}>
-                  Tỷ lệ đúng (%)
-                </span>
+              <h2 style={{ fontSize: 16, margin: "0 0 4px 0", fontWeight: 700 }}>
+                Phân loại Năng lực Nhân sự
+              </h2>
+              <p style={{ fontSize: 12, color: "var(--text-dim)", margin: "0 0 12px 0" }}>
+                Căn cứ theo mức điểm đạt được trong kỳ thi
+              </p>
+
+              <div style={{ height: 210 }}>
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie
+                      data={managerData.tierDistribution}
+                      dataKey="value"
+                      nameKey="name"
+                      cx="50%"
+                      cy="50%"
+                      outerRadius={75}
+                      innerRadius={45}
+                      paddingAngle={3}
+                    >
+                      {managerData.tierDistribution.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={entry.color} />
+                      ))}
+                    </Pie>
+                    <Tooltip contentStyle={tooltipStyle} />
+                    <Legend wrapperStyle={{ fontSize: "12px" }} />
+                  </PieChart>
+                </ResponsiveContainer>
               </div>
 
-              {managerData.systemCompetency.length === 0 ? (
-                <p style={{ color: "var(--text-dim)", fontSize: 13 }}>Đang tổng hợp dữ liệu hệ thống...</p>
+              <div style={{ display: "flex", justifyContent: "space-around", marginTop: 8, textAlign: "center" }}>
+                {managerData.tierDistribution.map((t) => (
+                  <div key={t.name}>
+                    <div style={{ fontSize: 16, fontWeight: 700, color: t.color, fontFamily: "var(--font-mono)" }}>
+                      {t.value} ({t.percent}%)
+                    </div>
+                    <div style={{ fontSize: 11, color: "var(--text-dim)" }}>{t.name.split(" ")[0]}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Cột 2: Phân tích Lỗ hổng Kiến thức */}
+            <div
+              className="chart-block"
+              style={{
+                background: DARK_BG,
+                border: "1px solid var(--panel-border)",
+                borderRadius: 10,
+                padding: "18px 16px",
+              }}
+            >
+              <h2 style={{ fontSize: 16, margin: "0 0 4px 0", fontWeight: 700 }}>
+                Lỗ hổng Kiến thức (Top câu hỏi sai nhiều nhất)
+              </h2>
+              <p style={{ fontSize: 12, color: "var(--text-dim)", margin: "0 0 12px 0" }}>
+                Các câu hỏi có tỷ lệ trả lời sai cao nhất trong kỳ
+              </p>
+
+              {managerData.hardestQuestions.length === 0 ? (
+                <p style={{ fontSize: 13, color: OK, padding: "20px 0", textAlign: "center" }}>
+                  Toàn bộ nhân sự đều trả lời đúng các câu hỏi!
+                </p>
               ) : (
-                <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-                  {managerData.systemCompetency.map((sys, idx) => {
-                    const color = sys.accuracy >= 80 ? OK : sys.accuracy >= 65 ? WARNING : DANGER;
-                    return (
-                      <div key={idx}>
+                <div style={{ display: "flex", flexDirection: "column", gap: 10, maxHeight: 260, overflowY: "auto" }}>
+                  {managerData.hardestQuestions.map((q, idx) => (
+                    <div
+                      key={idx}
+                      style={{
+                        padding: "10px 12px",
+                        borderRadius: 6,
+                        background: "rgba(255, 255, 255, 0.03)",
+                        border: "1px solid var(--panel-border)",
+                      }}
+                    >
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 8 }}>
+                        <div style={{ fontSize: 13, fontWeight: 600, color: "var(--text)", flex: 1 }}>
+                          <span style={{ color: "var(--amber)", marginRight: 6 }}>#{idx + 1}</span>
+                          {q.question}
+                        </div>
+                        <span
+                          className="badge badge-fail"
+                          style={{ fontSize: 11, padding: "2px 6px", whiteSpace: "nowrap" }}
+                        >
+                          Sai {q.wrongRate}% ({q.wrong}/{q.total})
+                        </span>
+                      </div>
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 6 }}>
+                        <span style={{ fontSize: 11, color: "var(--brand-cyan)", textTransform: "uppercase" }}>
+                          {q.category}
+                        </span>
+                        <button
+                          className="btn-secondary no-print"
+                          style={{ padding: "2px 8px", fontSize: 11 }}
+                          onClick={() => setExpandedQuestion(expandedQuestion === idx ? null : idx)}
+                        >
+                          {expandedQuestion === idx ? "Ẩn đáp án" : "Xem đáp án"}
+                        </button>
+                      </div>
+
+                      {expandedQuestion === idx && q.options && (
                         <div
                           style={{
-                            display: "flex",
-                            justifyContent: "space-between",
-                            fontSize: 13,
-                            marginBottom: 4,
+                            marginTop: 8,
+                            paddingTop: 8,
+                            borderTop: "1px dashed var(--panel-border)",
+                            fontSize: 12,
                           }}
                         >
-                          <span style={{ fontWeight: 500 }}>{sys.name}</span>
-                          <span style={{ fontFamily: "var(--font-mono)", color, fontWeight: 600 }}>
-                            {sys.accuracy}%{" "}
-                            <span style={{ fontSize: 11, color: "var(--text-dim)", fontWeight: 400 }}>
-                              ({sys.wrongAnswers > 0 ? `${sys.wrongAnswers} câu sai` : "Chuẩn"})
-                            </span>
-                          </span>
+                          {q.options.map((opt, oIdx) => (
+                            <div
+                              key={oIdx}
+                              style={{
+                                padding: "4px 6px",
+                                borderRadius: 4,
+                                color: oIdx === q.correctIndex ? OK : "var(--text-dim)",
+                                fontWeight: oIdx === q.correctIndex ? 700 : 400,
+                              }}
+                            >
+                              {oIdx === q.correctIndex ? "✓ Đáp án đúng: " : "• "}
+                              {opt}
+                            </div>
+                          ))}
                         </div>
-                        <div className="progress-track" style={{ height: 6 }}>
-                          <div
-                            className="progress-fill"
-                            style={{ width: `${sys.accuracy}%`, background: color }}
-                          />
-                        </div>
-                      </div>
-                    );
-                  })}
+                      )}
+                    </div>
+                  ))}
                 </div>
               )}
             </div>
-
-            {/* 2. Phân loại Năng lực Nhân sự (Xếp hạng) */}
-            <div
-              className="chart-block"
-              style={{
-                background: DARK_BG,
-                border: "1px solid var(--panel-border)",
-                borderRadius: 10,
-                padding: "18px 16px",
-              }}
-            >
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
-                <h2 style={{ fontSize: 15, margin: 0, fontWeight: 600 }}>
-                  Phân loại Năng lực Nhân sự
-                </h2>
-                <span style={{ fontSize: 11, color: "var(--text-dim)" }}>
-                  {managerData.totalDone} người đã thi
-                </span>
-              </div>
-
-              <ResponsiveContainer width="100%" height={210}>
-                <PieChart>
-                  <Pie
-                    data={managerData.tierDistribution}
-                    dataKey="value"
-                    nameKey="name"
-                    cx="50%"
-                    cy="50%"
-                    innerRadius={45}
-                    outerRadius={75}
-                    paddingAngle={3}
-                    animationDuration={600}
-                  >
-                    {managerData.tierDistribution.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={entry.color} />
-                    ))}
-                  </Pie>
-                  <Tooltip contentStyle={tooltipStyle} />
-                  <Legend wrapperStyle={{ color: DIM, fontSize: 12, paddingTop: 10 }} />
-                </PieChart>
-              </ResponsiveContainer>
-            </div>
           </div>
 
-          {/* Top Lỗ hổng Kiến thức (Các câu hỏi hay sai nhất) */}
-          {managerData.hardestQuestions.length > 0 && (
-            <div
-              className="chart-block"
-              style={{
-                background: DARK_BG,
-                border: "1px solid var(--panel-border)",
-                borderRadius: 10,
-                padding: "18px 16px",
-                marginBottom: 28,
-              }}
-            >
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
-                <div>
-                  <h2 style={{ fontSize: 15, margin: 0, fontWeight: 600 }}>
-                    Lỗ hổng Kiến thức Cần Lưu ý (Top câu hỏi sai nhiều nhất)
-                  </h2>
-                  <p style={{ margin: "2px 0 0 0", fontSize: 12, color: "var(--text-dim)" }}>
-                    Nhấp vào từng câu để xem chi tiết các đáp án và phương án chính xác
-                  </p>
-                </div>
-                <span style={{ fontSize: 11, color: DANGER, fontWeight: 600 }}>
-                  TỶ LỆ SAI
-                </span>
-              </div>
-
-              <table>
-                <thead>
-                  <tr>
-                    <th style={{ width: "60%" }}>Câu hỏi</th>
-                    <th style={{ textAlign: "center" }}>Số lần sai</th>
-                    <th style={{ textAlign: "center" }}>Tỷ lệ sai</th>
-                    <th style={{ textAlign: "right" }} className="no-print">Chi tiết</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {managerData.hardestQuestions.map((q, idx) => (
-                    <React.Fragment key={idx}>
-                      <tr>
-                        <td style={{ fontWeight: 500 }}>
-                          <span style={{ color: "var(--amber)", marginRight: 6 }}>#{idx + 1}</span>
-                          {q.question}
-                        </td>
-                        <td style={{ textAlign: "center", fontFamily: "var(--font-mono)" }}>
-                          {q.wrong}/{q.total}
-                        </td>
-                        <td style={{ textAlign: "center" }}>
-                          <span
-                            className="badge"
-                            style={{
-                              background: "rgba(229, 72, 77, 0.15)",
-                              color: DANGER,
-                              border: "1px solid rgba(229, 72, 77, 0.3)",
-                            }}
-                          >
-                            {q.wrongRate}%
-                          </span>
-                        </td>
-                        <td style={{ textAlign: "right" }} className="no-print">
-                          <button
-                            className="btn-secondary"
-                            style={{ padding: "4px 8px", fontSize: 12 }}
-                            onClick={() => setExpandedQuestion(expandedQuestion === idx ? null : idx)}
-                          >
-                            {expandedQuestion === idx ? "Đóng" : "Xem đáp án"}
-                          </button>
-                        </td>
-                      </tr>
-                      {expandedQuestion === idx && q.options && q.options.length > 0 && (
-                        <tr>
-                          <td colSpan={4} style={{ background: "#131b24", padding: "12px 16px" }}>
-                            <div style={{ fontSize: 12, color: "var(--text-dim)", marginBottom: 6 }}>
-                              CÁC PHƯƠNG ÁN LỰA CHỌN:
-                            </div>
-                            <div style={{ display: "grid", gap: 6 }}>
-                              {q.options.map((opt, optIdx) => (
-                                <div
-                                  key={optIdx}
-                                  style={{
-                                    fontSize: 13,
-                                    padding: "6px 10px",
-                                    borderRadius: 6,
-                                    background: optIdx === q.correct_index ? "rgba(69, 196, 176, 0.15)" : "transparent",
-                                    border: optIdx === q.correct_index ? "1px solid var(--ok)" : "1px solid var(--panel-border)",
-                                    color: optIdx === q.correct_index ? "var(--ok)" : "var(--text)",
-                                    fontWeight: optIdx === q.correct_index ? 600 : 400,
-                                  }}
-                                >
-                                  {String.fromCharCode(65 + optIdx)}. {opt}{" "}
-                                  {optIdx === q.correct_index && "✓ (Đáp án chuẩn)"}
-                                </div>
-                              ))}
-                            </div>
-                          </td>
-                        </tr>
-                      )}
-                    </React.Fragment>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-
-          {/* Bảng Theo dõi Tiến độ & Năng lực Từng Nhân sự */}
+          {/* Bảng Theo dõi & Xếp hạng Nhân sự Chi tiết */}
           <div
             style={{
               background: DARK_BG,
               border: "1px solid var(--panel-border)",
               borderRadius: 10,
               padding: "18px 16px",
-              marginBottom: 20,
+              marginBottom: 24,
             }}
           >
             <div
@@ -749,21 +755,21 @@ export default function DashboardPage() {
                 justifyContent: "space-between",
                 alignItems: "center",
                 flexWrap: "wrap",
-                gap: 12,
+                gap: 10,
                 marginBottom: 14,
               }}
             >
               <div>
-                <h2 style={{ fontSize: 15, margin: 0, fontWeight: 600 }}>
-                  Bảng Theo dõi & Đánh giá Năng lực Nhân sự
+                <h2 style={{ fontSize: 16, margin: "0 0 2px 0", fontWeight: 700 }}>
+                  Bảng Theo dõi Tiến độ & Xếp hạng Nhân sự
                 </h2>
-                <p style={{ margin: "2px 0 0 0", fontSize: 12, color: "var(--text-dim)" }}>
-                  Hiển thị chi tiết điểm số, thời gian làm bài và xếp loại chuyên môn
+                <p style={{ fontSize: 12, color: "var(--text-dim)", margin: 0 }}>
+                  Tổng số: {managerData.personnelList.length} nhân sự ({managerData.totalDone} đã hoàn thành, {managerData.notDoneCount} chưa thi)
                 </p>
               </div>
 
-              {/* Bộ lọc tab */}
-              <div className="no-print" style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+              {/* Tabs lọc nhanh */}
+              <div className="no-print" style={{ display: "flex", gap: 6 }}>
                 <button
                   className={`filter-tab ${personnelFilter === "all" ? "active" : ""}`}
                   onClick={() => setPersonnelFilter("all")}
@@ -782,21 +788,19 @@ export default function DashboardPage() {
                 >
                   Cần ôn lại ({managerData.failCount})
                 </button>
-                {managerData.notDoneCount > 0 && (
-                  <button
-                    className={`filter-tab ${personnelFilter === "not_done" ? "active" : ""}`}
-                    onClick={() => setPersonnelFilter("not_done")}
-                  >
-                    Chưa thi ({managerData.notDoneCount})
-                  </button>
-                )}
+                <button
+                  className={`filter-tab ${personnelFilter === "not_done" ? "active" : ""}`}
+                  onClick={() => setPersonnelFilter("not_done")}
+                >
+                  Chưa thi ({managerData.notDoneCount})
+                </button>
               </div>
             </div>
 
             <table>
               <thead>
                 <tr>
-                  <th style={{ width: 50 }}>Hạng</th>
+                  <th style={{ width: 40 }}>Hạng</th>
                   <th>Họ và tên</th>
                   <th>Email</th>
                   <th style={{ textAlign: "center" }}>Kết quả</th>
@@ -824,7 +828,7 @@ export default function DashboardPage() {
                           <span
                             style={{
                               fontFamily: "var(--font-mono)",
-                              fontWeight: 600,
+                              fontWeight: 700,
                               color: p.scorePercent >= 80 ? OK : DANGER,
                             }}
                           >
@@ -845,6 +849,25 @@ export default function DashboardPage() {
                 ))}
               </tbody>
             </table>
+          </div>
+
+          {/* Official Enterprise Print Footer (Chữ ký xác nhận 3 cấp) */}
+          <div className="print-official-footer" style={{ display: "none" }}>
+            <div>
+              <div style={{ fontWeight: 700, fontSize: 11, textTransform: "uppercase" }}>NGƯỜI LẬP BÁO CÁO</div>
+              <div style={{ fontSize: 9, color: "#64748b", fontStyle: "italic", marginTop: 2 }}>(Ký và ghi rõ họ tên)</div>
+              <div style={{ height: 55 }} />
+            </div>
+            <div>
+              <div style={{ fontWeight: 700, fontSize: 11, textTransform: "uppercase" }}>ĐỘI TRƯỞNG ĐỘI ĐNCT</div>
+              <div style={{ fontSize: 9, color: "#64748b", fontStyle: "italic", marginTop: 2 }}>(Ký và ghi rõ họ tên)</div>
+              <div style={{ height: 55 }} />
+            </div>
+            <div>
+              <div style={{ fontWeight: 700, fontSize: 11, textTransform: "uppercase" }}>TRƯỞNG PHÒNG KỸ THUẬT</div>
+              <div style={{ fontSize: 9, color: "#64748b", fontStyle: "italic", marginTop: 2 }}>(Ký duyệt)</div>
+              <div style={{ height: 55 }} />
+            </div>
           </div>
         </div>
       )}
