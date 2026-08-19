@@ -17,7 +17,8 @@ import {
   Sparkles,
   ArrowRight,
   ShieldCheck,
-  Download,
+  Award,
+  FileText,
 } from "lucide-react";
 
 export default function HomePage() {
@@ -230,9 +231,9 @@ export default function HomePage() {
         </button>
       </form>
 
-      {/* Khu vực Luyện tập */}
+      {/* Khu vực Luyện tập & Tra cứu */}
       <div className="nav-section-label">
-        <BookOpen size={14} style={{ color: "var(--brand-cyan)" }} /> Luyện tập & Ôn thi
+        <BookOpen size={14} style={{ color: "var(--brand-cyan)" }} /> Luyện tập & Tra cứu cá nhân
       </div>
       <div className="nav-grid">
         <a href="/practice" className="nav-tile featured">
@@ -247,6 +248,18 @@ export default function HomePage() {
               Luyện tập theo chuyên đề (Trung thế, Hạ thế, Máy phát, UPS, XLNT, 5S...) kèm giải thích
             </div>
           </div>
+        </a>
+        <a href="/my-result" className="nav-tile">
+          <span className="nav-tile-icon" style={{ color: "var(--amber)", background: "rgba(245, 158, 11, 0.15)" }}>
+            <Award size={18} />
+          </span>
+          <span className="nav-tile-label">Tra cứu Điểm & Chứng nhận</span>
+        </a>
+        <a href="/guide" className="nav-tile">
+          <span className="nav-tile-icon" style={{ color: "#38bdf8", background: "rgba(56, 189, 248, 0.15)" }}>
+            <FileText size={18} />
+          </span>
+          <span className="nav-tile-label">Quy chế & Hướng dẫn Thi</span>
         </a>
       </div>
 
@@ -284,12 +297,6 @@ export default function HomePage() {
             <Users size={18} />
           </span>
           <span className="nav-tile-label">Danh sách Nhân sự</span>
-        </a>
-        <a href="/dnct-quiz-app-updated.zip" download="dnct-quiz-app-updated.zip" className="nav-tile" title="Tải toàn bộ mã nguồn ứng dụng (.zip)">
-          <span className="nav-tile-icon" style={{ color: "var(--brand-cyan)", background: "rgba(56, 189, 248, 0.15)" }}>
-            <Download size={18} />
-          </span>
-          <span className="nav-tile-label">Tải Source Code (.zip)</span>
         </a>
       </div>
     </div>

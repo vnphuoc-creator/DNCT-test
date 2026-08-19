@@ -322,16 +322,7 @@ export default function ReportPage() {
               marginBottom: 24,
             }}
           >
-            <div
-              className="stat-box"
-              style={{
-                background: "#0d1620",
-                border: "1px solid var(--panel-border)",
-                borderRadius: 10,
-                padding: "14px 12px",
-                textAlign: "center",
-              }}
-            >
+            <div className="stat-box" style={{ padding: "14px 12px" }}>
               <div style={{ fontSize: 22, fontFamily: "var(--font-mono)", color: "var(--amber)", fontWeight: 700 }}>
                 {stats.count}
               </div>
@@ -340,16 +331,7 @@ export default function ReportPage() {
               </div>
             </div>
 
-            <div
-              className="stat-box"
-              style={{
-                background: "#0d1620",
-                border: "1px solid var(--panel-border)",
-                borderRadius: 10,
-                padding: "14px 12px",
-                textAlign: "center",
-              }}
-            >
+            <div className="stat-box" style={{ padding: "14px 12px" }}>
               <div style={{ fontSize: 22, fontFamily: "var(--font-mono)", color: "var(--ok)", fontWeight: 700 }}>
                 {stats.passRate}%
               </div>
@@ -358,16 +340,7 @@ export default function ReportPage() {
               </div>
             </div>
 
-            <div
-              className="stat-box"
-              style={{
-                background: "#0d1620",
-                border: "1px solid var(--panel-border)",
-                borderRadius: 10,
-                padding: "14px 12px",
-                textAlign: "center",
-              }}
-            >
+            <div className="stat-box" style={{ padding: "14px 12px" }}>
               <div style={{ fontSize: 22, fontFamily: "var(--font-mono)", color: "#38bdf8", fontWeight: 700 }}>
                 {stats.avg}%
               </div>
@@ -376,16 +349,7 @@ export default function ReportPage() {
               </div>
             </div>
 
-            <div
-              className="stat-box"
-              style={{
-                background: "#0d1620",
-                border: "1px solid var(--panel-border)",
-                borderRadius: 10,
-                padding: "14px 12px",
-                textAlign: "center",
-              }}
-            >
+            <div className="stat-box" style={{ padding: "14px 12px" }}>
               <div style={{ fontSize: 22, fontFamily: "var(--font-mono)", color: "var(--text)", fontWeight: 700 }}>
                 {stats.max}% / {stats.min}%
               </div>
@@ -396,15 +360,7 @@ export default function ReportPage() {
           </div>
 
           {/* Bảng chi tiết từng nhân sự */}
-          <div
-            style={{
-              background: "#0d1620",
-              border: "1px solid var(--panel-border)",
-              borderRadius: 10,
-              padding: "18px 16px",
-              marginBottom: 24,
-            }}
-          >
+          <div className="dashboard-section-box">
             <h2 style={{ fontSize: 16, margin: "0 0 12px 0", fontWeight: 600 }}>
               Danh sách Nhân sự Đã Hoàn thành Bài Test
             </h2>

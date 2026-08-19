@@ -120,6 +120,11 @@ body {
     margin: 10mm 12mm 10mm 12mm;
   }
 
+  *, *::before, *::after {
+    box-shadow: none !important;
+    text-shadow: none !important;
+  }
+
   .no-print,
   .plane-track,
   .brand-badge {
@@ -129,8 +134,9 @@ body {
   html,
   body {
     background: #ffffff !important;
+    background-color: #ffffff !important;
     color: #0f172a !important;
-    font-size: 11pt !important;
+    font-size: 10pt !important;
     -webkit-print-color-adjust: exact !important;
     print-color-adjust: exact !important;
   }
@@ -139,18 +145,23 @@ body {
     padding: 0 !important;
     display: block !important;
     min-height: auto !important;
+    background: #ffffff !important;
+    background-color: #ffffff !important;
   }
 
   .card,
-  .dashboard-print-area {
+  .dashboard-print-area,
+  .dashboard-section-box,
+  .table-container {
     max-width: 100% !important;
     width: 100% !important;
     box-shadow: none !important;
     border: none !important;
     background: #ffffff !important;
+    background-color: #ffffff !important;
     color: #0f172a !important;
     padding: 0 !important;
-    margin: 0 !important;
+    margin: 0 0 16px 0 !important;
   }
 
   .card::before {
@@ -164,22 +175,26 @@ body {
     border-bottom: 2px solid #0284c7;
     padding-bottom: 12px;
     margin-bottom: 16px;
+    background: #ffffff !important;
   }
 
   .stat-box {
     background: #f8fafc !important;
+    background-color: #f8fafc !important;
     border: 1px solid #cbd5e1 !important;
+    color: #0f172a !important;
     box-shadow: none !important;
+    padding: 12px !important;
+    border-radius: 6px !important;
   }
 
-  .stat-box div[style*="uppercase"] {
-    color: #475569 !important;
-    font-weight: 600 !important;
+  .stat-box * {
+    color: #0f172a !important;
   }
 
   .dash-grid {
     grid-template-columns: 1fr 1fr !important;
-    gap: 16px !important;
+    gap: 14px !important;
   }
 
   .chart-block {
@@ -187,30 +202,73 @@ body {
     page-break-inside: avoid;
     border: 1px solid #cbd5e1 !important;
     background: #ffffff !important;
+    background-color: #ffffff !important;
+    color: #0f172a !important;
     padding: 12px !important;
     border-radius: 6px !important;
     margin-bottom: 14px !important;
+  }
+
+  .chart-block * {
+    color: #0f172a !important;
+  }
+
+  .dashboard-section-box,
+  .table-container {
+    border: 1px solid #cbd5e1 !important;
+    background: #ffffff !important;
+    background-color: #ffffff !important;
+    color: #0f172a !important;
+    padding: 12px !important;
+    border-radius: 6px !important;
   }
 
   table {
     border: 1px solid #cbd5e1 !important;
     border-collapse: collapse !important;
     width: 100% !important;
+    background: #ffffff !important;
+    background-color: #ffffff !important;
+    margin: 10px 0 !important;
+  }
+
+  thead tr {
+    background: #f1f5f9 !important;
+    background-color: #f1f5f9 !important;
   }
 
   th {
     background: #e2e8f0 !important;
+    background-color: #e2e8f0 !important;
     color: #0f172a !important;
-    border-bottom: 2px solid #64748b !important;
-    padding: 8px 6px !important;
-    font-size: 10pt !important;
+    border: 1px solid #cbd5e1 !important;
+    padding: 8px 8px !important;
+    font-size: 9.5pt !important;
+    font-weight: 700 !important;
+  }
+
+  tbody tr {
+    background: #ffffff !important;
+    background-color: #ffffff !important;
+  }
+
+  tbody tr:nth-child(even) {
+    background: #f8fafc !important;
+    background-color: #f8fafc !important;
   }
 
   td {
     color: #0f172a !important;
-    border-bottom: 1px solid #e2e8f0 !important;
-    padding: 7px 6px !important;
-    font-size: 10pt !important;
+    border: 1px solid #e2e8f0 !important;
+    padding: 7px 8px !important;
+    font-size: 9.5pt !important;
+    background: transparent !important;
+  }
+
+  td strong,
+  td span:not(.badge),
+  td div {
+    color: #0f172a !important;
   }
 
   .badge-excellent {
@@ -305,6 +363,29 @@ a {
   align-items: center;
   justify-content: flex-start;
   padding: 44px 16px 64px;
+}
+
+.dashboard-section-box {
+  background: #0f172a;
+  border: 1px solid var(--panel-border);
+  border-radius: 10px;
+  padding: 18px 16px;
+  margin-bottom: 24px;
+}
+
+.stat-box {
+  background: #0f172a;
+  border: 1px solid var(--panel-border);
+  border-radius: 10px;
+  padding: 16px 14px;
+  text-align: center;
+}
+
+.chart-block {
+  background: #0f172a;
+  border: 1px solid var(--panel-border);
+  border-radius: 10px;
+  padding: 18px 16px;
 }
 
 .card {

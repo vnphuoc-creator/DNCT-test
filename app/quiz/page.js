@@ -175,7 +175,14 @@ export default function QuizPage() {
     }
   }
 
-  async function finishQuiz() {
+  async function finishQuiz(finalScore, answers) {
+    const windowStatus = getQuizWindowStatus();
+    if (!windowStatus.open) {
+      setErrorMsg("Kỳ thi hiện tại đang đóng (chỉ mở từ ngày 27 đến 30 hằng tháng). Kết quả không được ghi nhận.");
+      setStatus("error");
+      return;
+    }
+
     setSaving(true);
     const durationSeconds = startTimeRef.current
       ? Math.round((Date.now() - startTimeRef.current) / 1000)
@@ -183,9 +190,9 @@ export default function QuizPage() {
     const { error } = await supabase.from("quiz_results").insert({
       user_name: userName,
       email: userEmail,
-      score,
+      score: finalScore !== undefined ? finalScore : score,
       total: questions.length,
-      answers: userAnswers,
+      answers: answers || userAnswers,
       duration_seconds: durationSeconds,
       period: getCurrentPeriod(),
     });

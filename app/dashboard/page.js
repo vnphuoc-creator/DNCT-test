@@ -205,6 +205,13 @@ export default function DashboardPage() {
     const doneMap = new Map();
     for (const r of results) {
       const email = (r.email || "").toLowerCase().trim();
+      const matchedUser = allowedUsers.find(
+        (u) =>
+          (u.email && u.email.toLowerCase().trim() === email) ||
+          (u.full_name && u.full_name.toLowerCase().trim() === (r.user_name || "").toLowerCase().trim())
+      );
+      const displayName = r.user_name || matchedUser?.full_name || "Nhân sự ĐNCT";
+      const displayEmail = r.email || matchedUser?.email || "—";
       const scorePct = r.total > 0 ? Math.round((r.score / r.total) * 100) : 0;
       let tier = "Cần đào tạo lại";
       let tierClass = "badge-fail";
@@ -224,10 +231,11 @@ export default function DashboardPage() {
         status = "fail";
       }
 
-      doneMap.set(email || r.user_name, {
+      const key = email || r.user_name || `result_${r.id}`;
+      doneMap.set(key, {
         id: r.id,
-        name: r.user_name,
-        email: r.email,
+        name: displayName,
+        email: displayEmail,
         score: r.score,
         total: r.total,
         scorePercent: scorePct,
@@ -246,22 +254,25 @@ export default function DashboardPage() {
 
     const personnelList = [];
     const processedEmails = new Set();
+    const processedNames = new Set();
 
     // 1. Những người đã làm bài
     for (const item of Array.from(doneMap.values())) {
       personnelList.push(item);
-      if (item.email) processedEmails.add(item.email.toLowerCase().trim());
+      if (item.email && item.email !== "—") processedEmails.add(item.email.toLowerCase().trim());
+      if (item.name) processedNames.add(item.name.toLowerCase().trim());
     }
 
     // 2. Những người chưa làm bài
     if (selectedPeriod !== "all") {
       for (const u of allowedUsers) {
         const uEmail = (u.email || "").toLowerCase().trim();
-        if (!processedEmails.has(uEmail)) {
+        const uName = (u.full_name || "").toLowerCase().trim();
+        if (!processedEmails.has(uEmail) && !processedNames.has(uName)) {
           personnelList.push({
             id: `not_done_${u.id}`,
-            name: u.full_name,
-            email: u.email,
+            name: u.full_name || "Nhân sự",
+            email: u.email || "—",
             score: null,
             total: null,
             scorePercent: 0,
@@ -440,16 +451,7 @@ export default function DashboardPage() {
               marginBottom: 24,
             }}
           >
-            <div
-              className="stat-box"
-              style={{
-                background: DARK_BG,
-                border: "1px solid var(--panel-border)",
-                borderRadius: 10,
-                padding: "16px 14px",
-                textAlign: "center",
-              }}
-            >
+            <div className="stat-box">
               <div style={{ fontSize: 24, fontWeight: 800, color: "var(--brand-cyan)", fontFamily: "var(--font-mono)" }}>
                 {managerData.totalDone}
                 <span style={{ fontSize: 14, color: "var(--text-dim)", fontWeight: 400 }}>
@@ -467,16 +469,7 @@ export default function DashboardPage() {
               </div>
             </div>
 
-            <div
-              className="stat-box"
-              style={{
-                background: DARK_BG,
-                border: "1px solid var(--panel-border)",
-                borderRadius: 10,
-                padding: "16px 14px",
-                textAlign: "center",
-              }}
-            >
+            <div className="stat-box">
               <div style={{ fontSize: 24, fontWeight: 800, color: OK, fontFamily: "var(--font-mono)" }}>
                 {managerData.passRate}%
               </div>
@@ -488,16 +481,7 @@ export default function DashboardPage() {
               </div>
             </div>
 
-            <div
-              className="stat-box"
-              style={{
-                background: DARK_BG,
-                border: "1px solid var(--panel-border)",
-                borderRadius: 10,
-                padding: "16px 14px",
-                textAlign: "center",
-              }}
-            >
+            <div className="stat-box">
               <div style={{ fontSize: 24, fontWeight: 800, color: "var(--amber)", fontFamily: "var(--font-mono)" }}>
                 {managerData.avgScore}%
               </div>
@@ -509,16 +493,7 @@ export default function DashboardPage() {
               </div>
             </div>
 
-            <div
-              className="stat-box"
-              style={{
-                background: DARK_BG,
-                border: "1px solid var(--panel-border)",
-                borderRadius: 10,
-                padding: "16px 14px",
-                textAlign: "center",
-              }}
-            >
+            <div className="stat-box">
               <div style={{ fontSize: 24, fontWeight: 800, color: "#38bdf8", fontFamily: "var(--font-mono)" }}>
                 {formatDuration(managerData.avgDurationSec)}
               </div>
@@ -532,15 +507,7 @@ export default function DashboardPage() {
           </div>
 
           {/* Phân tích hệ thống & Cảnh báo quản lý */}
-          <div
-            style={{
-              background: DARK_BG,
-              border: "1px solid var(--panel-border)",
-              borderRadius: 10,
-              padding: "18px 20px",
-              marginBottom: 24,
-            }}
-          >
+          <div className="dashboard-section-box" style={{ padding: "18px 20px" }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
               <h2 style={{ fontSize: 16, margin: 0, fontWeight: 700 }}>
                 Đánh giá Tỷ lệ Đạt theo Từng Hệ thống Kỹ thuật
@@ -598,15 +565,7 @@ export default function DashboardPage() {
           {/* Grid 2 cột: Biểu đồ xếp loại & Top câu hỏi khó */}
           <div className="dash-grid" style={{ marginBottom: 24 }}>
             {/* Cột 1: Phân bố Xếp loại */}
-            <div
-              className="chart-block"
-              style={{
-                background: DARK_BG,
-                border: "1px solid var(--panel-border)",
-                borderRadius: 10,
-                padding: "18px 16px",
-              }}
-            >
+            <div className="chart-block">
               <h2 style={{ fontSize: 16, margin: "0 0 4px 0", fontWeight: 700 }}>
                 Phân loại Năng lực Nhân sự
               </h2>
@@ -650,15 +609,7 @@ export default function DashboardPage() {
             </div>
 
             {/* Cột 2: Phân tích Lỗ hổng Kiến thức */}
-            <div
-              className="chart-block"
-              style={{
-                background: DARK_BG,
-                border: "1px solid var(--panel-border)",
-                borderRadius: 10,
-                padding: "18px 16px",
-              }}
-            >
+            <div className="chart-block">
               <h2 style={{ fontSize: 16, margin: "0 0 4px 0", fontWeight: 700 }}>
                 Lỗ hổng Kiến thức (Top câu hỏi sai nhiều nhất)
               </h2>
@@ -740,15 +691,7 @@ export default function DashboardPage() {
           </div>
 
           {/* Bảng Theo dõi & Xếp hạng Nhân sự Chi tiết */}
-          <div
-            style={{
-              background: DARK_BG,
-              border: "1px solid var(--panel-border)",
-              borderRadius: 10,
-              padding: "18px 16px",
-              marginBottom: 24,
-            }}
-          >
+          <div className="dashboard-section-box">
             <div
               style={{
                 display: "flex",
