@@ -2,6 +2,13 @@
 
 import React, { useEffect, useMemo, useState } from "react";
 import {
+  RotateCcw,
+  Trash2,
+  AlertTriangle,
+  CheckCircle2,
+  X,
+} from "lucide-react";
+import {
   BarChart,
   Bar,
   PieChart,
@@ -47,10 +54,39 @@ export default function DashboardPage() {
   const [selectedPeriod, setSelectedPeriod] = useState(getCurrentPeriod());
   const [personnelFilter, setPersonnelFilter] = useState("all"); // all | pass | fail | not_done
   const [expandedQuestion, setExpandedQuestion] = useState(null);
+  const [resetTarget, setResetTarget] = useState(null); // Person result to reset/delete
+  const [resetting, setResetting] = useState(false);
+  const [toastMsg, setToastMsg] = useState("");
 
   useEffect(() => {
     loadData();
   }, []);
+
+  async function handleExecuteReset() {
+    if (!resetTarget || !resetTarget.id) return;
+    setResetting(true);
+
+    const { error: delError } = await supabase
+      .from("quiz_results")
+      .delete()
+      .eq("id", resetTarget.id);
+
+    setResetting(false);
+
+    if (delError) {
+      alert("Lỗi khi xóa bài làm: " + delError.message);
+      return;
+    }
+
+    const personName = resetTarget.name;
+    setResetTarget(null);
+    setToastMsg(`✓ Đã xóa kết quả của "${personName}". Nhân sự hiện có thể làm lại bài thi mới.`);
+    await loadData();
+
+    setTimeout(() => {
+      setToastMsg("");
+    }, 6000);
+  }
 
   async function loadData() {
     const [resultsRes, usersRes] = await Promise.all([
@@ -740,6 +776,28 @@ export default function DashboardPage() {
               </div>
             </div>
 
+            {/* Toast notification message */}
+            {toastMsg && (
+              <div
+                style={{
+                  background: "rgba(16, 185, 129, 0.15)",
+                  border: "1px solid rgba(16, 185, 129, 0.4)",
+                  borderRadius: 8,
+                  padding: "10px 16px",
+                  marginBottom: 14,
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 8,
+                  color: "#34d399",
+                  fontSize: 13,
+                  fontWeight: 600,
+                }}
+              >
+                <CheckCircle2 size={16} />
+                <span>{toastMsg}</span>
+              </div>
+            )}
+
             <table>
               <thead>
                 <tr>
@@ -750,6 +808,7 @@ export default function DashboardPage() {
                   <th style={{ textAlign: "center" }}>Tỷ lệ</th>
                   <th style={{ textAlign: "center" }}>Thời gian</th>
                   <th style={{ textAlign: "right" }}>Xếp loại</th>
+                  <th style={{ textAlign: "center", width: 110 }} className="no-print">Thao tác</th>
                 </tr>
               </thead>
               <tbody>
@@ -788,10 +847,148 @@ export default function DashboardPage() {
                     <td style={{ textAlign: "right" }}>
                       <span className={`badge ${p.tierClass}`}>{p.tier}</span>
                     </td>
+                    <td style={{ textAlign: "center" }} className="no-print">
+                      {p.status !== "not_done" ? (
+                        <button
+                          type="button"
+                          className="btn-secondary"
+                          style={{
+                            fontSize: 11,
+                            padding: "3px 8px",
+                            color: "var(--danger)",
+                            borderColor: "rgba(244, 63, 94, 0.4)",
+                            display: "inline-flex",
+                            alignItems: "center",
+                            gap: 4,
+                            whiteSpace: "nowrap",
+                            cursor: "pointer",
+                          }}
+                          title={`Xóa bài làm của ${p.name} để cho phép thi lại`}
+                          onClick={() => setResetTarget(p)}
+                        >
+                          <RotateCcw size={12} /> Cho thi lại
+                        </button>
+                      ) : (
+                        <span style={{ fontSize: 11, color: "var(--text-dim)" }}>—</span>
+                      )}
+                    </td>
                   </tr>
                 ))}
               </tbody>
             </table>
+          </div>
+        </div>
+      )}
+
+      {/* Modal xác nhận Xóa kết quả & Cho thi lại */}
+      {resetTarget && (
+        <div
+          style={{
+            position: "fixed",
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            background: "rgba(0, 0, 0, 0.75)",
+            backdropFilter: "blur(4px)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 9999,
+            padding: 16,
+          }}
+        >
+          <div
+            className="card"
+            style={{
+              width: "100%",
+              maxWidth: 480,
+              border: "1px solid rgba(244, 63, 94, 0.4)",
+              boxShadow: "0 20px 40px rgba(0,0,0,0.6)",
+            }}
+          >
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 8, color: "var(--danger)", fontWeight: 700, fontSize: 16 }}>
+                <AlertTriangle size={20} />
+                Xác nhận Xóa kết quả & Cho thi lại
+              </div>
+              <button
+                type="button"
+                className="btn-secondary"
+                style={{ padding: 4, height: 28, width: 28, display: "flex", alignItems: "center", justifyContent: "center" }}
+                onClick={() => setResetTarget(null)}
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            <p style={{ fontSize: 14, color: "var(--text)", lineHeight: 1.6, margin: "0 0 14px 0" }}>
+              Bạn có chắc chắn muốn xóa bài thi của nhân sự:
+            </p>
+
+            <div
+              style={{
+                background: "rgba(255, 255, 255, 0.04)",
+                border: "1px solid var(--panel-border)",
+                borderRadius: 8,
+                padding: "12px 14px",
+                marginBottom: 16,
+              }}
+            >
+              <div style={{ fontSize: 15, fontWeight: 700, color: "#ffffff" }}>{resetTarget.name}</div>
+              <div style={{ fontSize: 12, color: "var(--text-dim)", fontFamily: "var(--font-mono)", marginTop: 2 }}>
+                Email: {resetTarget.email}
+              </div>
+              <div style={{ fontSize: 12, color: "var(--brand-cyan)", marginTop: 6 }}>
+                Điểm số hiện tại: <strong>{resetTarget.score}/{resetTarget.total} ({resetTarget.scorePercent}%)</strong> — Xếp loại: <strong>{resetTarget.tier}</strong>
+              </div>
+            </div>
+
+            <div
+              style={{
+                background: "rgba(244, 63, 94, 0.08)",
+                border: "1px solid rgba(244, 63, 94, 0.25)",
+                borderRadius: 8,
+                padding: "10px 12px",
+                fontSize: 12.5,
+                color: "#fda4af",
+                lineHeight: 1.5,
+                marginBottom: 20,
+              }}
+            >
+              ⚠️ <strong>Lưu ý:</strong> Sau khi xóa, kết quả bài thi này sẽ được gỡ bỏ khỏi hệ thống. Nhân sự <strong>{resetTarget.name}</strong> sẽ được phép truy cập trang chủ và bắt đầu làm lại bài thi mới ngay lập tức.
+            </div>
+
+            <div style={{ display: "flex", gap: 10, justifyContent: "flex-end" }}>
+              <button
+                type="button"
+                className="btn-secondary"
+                style={{ padding: "0 16px", height: 38, fontSize: 13 }}
+                onClick={() => setResetTarget(null)}
+                disabled={resetting}
+              >
+                Hủy bỏ
+              </button>
+              <button
+                type="button"
+                className="btn-primary"
+                style={{
+                  padding: "0 18px",
+                  height: 38,
+                  fontSize: 13,
+                  background: "linear-gradient(135deg, #e11d48 0%, #be123c 100%)",
+                  borderColor: "#f43f5e",
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 6,
+                }}
+                onClick={handleExecuteReset}
+                disabled={resetting}
+              >
+                <Trash2 size={15} />
+                {resetting ? "Đang xóa..." : "Xác nhận Xóa & Cho thi lại"}
+              </button>
+            </div>
           </div>
         </div>
       )}
