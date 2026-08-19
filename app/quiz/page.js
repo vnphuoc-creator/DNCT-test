@@ -281,22 +281,52 @@ export default function QuizPage() {
         />
       )}
 
-      {q.options.map((opt, i) => {
-        let className = "option";
-        if (selected !== null) {
-          if (i === q.correct_index) className += " correct";
-          else if (i === selected) className += " wrong";
-        }
-        return (
-          <button
-            key={i}
-            className={className}
-            onClick={() => handleSelect(i)}
-          >
-            {opt}
-          </button>
-        );
-      })}
+      <div style={{ display: "flex", flexDirection: "column", gap: 10, margin: "16px 0" }}>
+        {q.options.map((opt, i) => {
+          let className = "option";
+          if (selected !== null) {
+            if (i === q.correct_index) className += " correct";
+            else if (i === selected) className += " wrong";
+          }
+          const letter = String.fromCharCode(65 + i);
+          return (
+            <button
+              key={i}
+              className={className}
+              onClick={() => handleSelect(i)}
+              style={{
+                display: "flex",
+                alignItems: "flex-start",
+                gap: 12,
+                textAlign: "left",
+                padding: "12px 14px",
+                width: "100%",
+                borderRadius: 8,
+                margin: 0,
+              }}
+            >
+              <span
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  width: 26,
+                  height: 26,
+                  borderRadius: "50%",
+                  background: "rgba(255, 255, 255, 0.12)",
+                  fontSize: 13,
+                  fontWeight: 700,
+                  flexShrink: 0,
+                  marginTop: 1,
+                }}
+              >
+                {letter}
+              </span>
+              <span style={{ flex: 1, fontSize: 15, lineHeight: 1.5 }}>{opt}</span>
+            </button>
+          );
+        })}
+      </div>
 
       {selected !== null && q.explanation && (
         <div

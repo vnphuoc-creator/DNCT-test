@@ -17,6 +17,7 @@ import {
   Sparkles,
   ArrowRight,
   ShieldCheck,
+  Download,
 } from "lucide-react";
 
 export default function HomePage() {
@@ -283,6 +284,12 @@ export default function HomePage() {
             <Users size={18} />
           </span>
           <span className="nav-tile-label">Danh sách Nhân sự</span>
+        </a>
+        <a href="/dnct-quiz-app-updated.zip" download="dnct-quiz-app-updated.zip" className="nav-tile" title="Tải toàn bộ mã nguồn ứng dụng (.zip)">
+          <span className="nav-tile-icon" style={{ color: "var(--brand-cyan)", background: "rgba(56, 189, 248, 0.15)" }}>
+            <Download size={18} />
+          </span>
+          <span className="nav-tile-label">Tải Source Code (.zip)</span>
         </a>
       </div>
     </div>

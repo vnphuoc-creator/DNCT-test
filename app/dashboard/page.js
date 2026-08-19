@@ -850,25 +850,6 @@ export default function DashboardPage() {
               </tbody>
             </table>
           </div>
-
-          {/* Official Enterprise Print Footer (Chữ ký xác nhận 3 cấp) */}
-          <div className="print-official-footer" style={{ display: "none" }}>
-            <div>
-              <div style={{ fontWeight: 700, fontSize: 11, textTransform: "uppercase" }}>NGƯỜI LẬP BÁO CÁO</div>
-              <div style={{ fontSize: 9, color: "#64748b", fontStyle: "italic", marginTop: 2 }}>(Ký và ghi rõ họ tên)</div>
-              <div style={{ height: 55 }} />
-            </div>
-            <div>
-              <div style={{ fontWeight: 700, fontSize: 11, textTransform: "uppercase" }}>ĐỘI TRƯỞNG ĐỘI ĐNCT</div>
-              <div style={{ fontSize: 9, color: "#64748b", fontStyle: "italic", marginTop: 2 }}>(Ký và ghi rõ họ tên)</div>
-              <div style={{ height: 55 }} />
-            </div>
-            <div>
-              <div style={{ fontWeight: 700, fontSize: 11, textTransform: "uppercase" }}>TRƯỞNG PHÒNG KỸ THUẬT</div>
-              <div style={{ fontSize: 9, color: "#64748b", fontStyle: "italic", marginTop: 2 }}>(Ký duyệt)</div>
-              <div style={{ height: 55 }} />
-            </div>
-          </div>
         </div>
       )}
 
