@@ -2,188 +2,112 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "../../lib/supabaseClient";
-import { getCurrentPeriod, formatPeriodLabel } from "../../lib/period";
 
-function formatDuration(seconds) {
-  if (seconds === null || seconds === undefined) return "—";
-  const m = Math.floor(seconds / 60);
-  const s = seconds % 60;
-  return `${m} phút ${s.toString().padStart(2, "0")} giây`;
-}
+const emptyForm = { id: null, full_name: "", email: "" };
 
-export default function ReportPage() {
-  const [status, setStatus] = useState("loading"); // loading | error | ready
+export default function AdminUsersPage() {
+  const [status, setStatus] = useState("loading");
   const [errorMsg, setErrorMsg] = useState("");
-  const [allResults, setAllResults] = useState([]);
-  const [selectedPeriod, setSelectedPeriod] = useState(getCurrentPeriod());
-  const [expandedId, setExpandedId] = useState(null);
+  const [users, setUsers] = useState([]);
+  const [search, setSearch] = useState("");
+  const [mode, setMode] = useState("list"); // list | edit
+  const [form, setForm] = useState(emptyForm);
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState("");
 
   useEffect(() => {
-    loadResults();
+    loadUsers();
   }, []);
 
-  async function loadResults() {
+  async function loadUsers() {
+    setStatus("loading");
     const { data, error } = await supabase
-      .from("quiz_results")
+      .from("allowed_users")
       .select("*")
-      .order("created_at", { ascending: false })
-      .limit(5000);
-
+      .order("full_name", { ascending: true });
     if (error) {
       setErrorMsg(error.message);
       setStatus("error");
       return;
     }
-    setAllResults(data || []);
+    setUsers(data || []);
     setStatus("ready");
   }
 
-  // Danh sách các tháng đã từng có người làm bài, để hiện trong bộ lọc
-  const availablePeriods = useMemo(() => {
-    const set = new Set(allResults.map((r) => r.period || "khong-ro"));
-    return Array.from(set).sort().reverse();
-  }, [allResults]);
+  const filtered = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    if (!q) return users;
+    return users.filter(
+      (u) => u.full_name.toLowerCase().includes(q) || u.email.toLowerCase().includes(q)
+    );
+  }, [users, search]);
 
-  // Chỉ lấy kết quả của tháng đang chọn (hoặc tất cả nếu chọn "Tất cả")
-  const results = useMemo(() => {
-    if (selectedPeriod === "all") return allResults;
-    return allResults.filter((r) => (r.period || "khong-ro") === selectedPeriod);
-  }, [allResults, selectedPeriod]);
-
-  // ---- Tính toán số liệu tổng quan ----
-  const stats = useMemo(() => {
-    if (results.length === 0) return null;
-
-    const percents = results.map((r) => (r.total > 0 ? (r.score / r.total) * 100 : 0));
-    const avg = percents.reduce((a, b) => a + b, 0) / percents.length;
-    const max = Math.max(...percents);
-    const min = Math.min(...percents);
-
-    // Đếm số lần sai theo từng câu hỏi (dựa vào question_text lưu trong answers)
-    const questionStats = {}; // question_text -> { wrong, total }
-    for (const r of results) {
-      const answers = r.answers || [];
-      for (const a of answers) {
-        const key = a.question_text || `#${a.question_id}`;
-        if (!questionStats[key]) questionStats[key] = { wrong: 0, total: 0 };
-        questionStats[key].total += 1;
-        if (!a.is_correct) questionStats[key].wrong += 1;
-      }
-    }
-    const hardestQuestions = Object.entries(questionStats)
-      .map(([question, s]) => ({
-        question,
-        wrong: s.wrong,
-        total: s.total,
-        wrongRate: s.total > 0 ? Math.round((s.wrong / s.total) * 100) : 0,
-      }))
-      .filter((q) => q.wrong > 0)
-      .sort((a, b) => b.wrongRate - a.wrongRate || b.wrong - a.wrong)
-      .slice(0, 15);
-
-    return {
-      count: results.length,
-      avg: avg.toFixed(1),
-      max: max.toFixed(0),
-      min: min.toFixed(0),
-      hardestQuestions,
-    };
-  }, [results]);
-
-  async function handleLogout() {
-    await fetch("/api/admin-logout", { method: "POST" });
-    window.location.href = "/";
+  function openCreate() {
+    setForm(emptyForm);
+    setSaveError("");
+    setMode("edit");
   }
 
-  async function handleExportExcel() {
-    const XLSX = await import("xlsx");
+  function openEdit(item) {
+    setForm({ id: item.id, full_name: item.full_name, email: item.email });
+    setSaveError("");
+    setMode("edit");
+  }
 
-    // Sheet 1: Tổng hợp mỗi người — đúng các trường yêu cầu
-    const summarySheetData = [
-      [
-        "Tên người làm bài",
-        "Email",
-        "Số câu trả lời đúng",
-        "Tổng số câu",
-        "Tỉ lệ phần trăm (%)",
-        "Thời gian làm bài",
-        "Thời gian hoàn thành",
-      ],
-      ...results.map((r) => {
-        const percent = r.total > 0 ? Math.round((r.score / r.total) * 100) : 0;
-        return [
-          r.user_name,
-          r.email || "",
-          r.score,
-          r.total,
-          percent,
-          formatDuration(r.duration_seconds),
-          new Date(r.created_at).toLocaleString("vi-VN"),
-        ];
-      }),
-    ];
-
-    // Sheet 2: Câu hỏi hay sai nhất
-    const hardestSheetData = [
-      ["Câu hỏi", "Số lần sai", "Số lần xuất hiện", "Tỷ lệ sai (%)"],
-      ...stats.hardestQuestions.map((q) => [q.question, q.wrong, q.total, q.wrongRate]),
-    ];
-
-    // Sheet 3: Chi tiết từng người + từng câu trả lời
-    const detailSheetData = [
-      [
-        "Tên",
-        "Email",
-        "Điểm",
-        "Tổng câu",
-        "Tỷ lệ (%)",
-        "Thời gian làm bài",
-        "Thời gian hoàn thành",
-        "Câu hỏi",
-        "Trả lời",
-        "Đáp án đúng",
-        "Kết quả",
-      ],
-    ];
-    for (const r of results) {
-      const answers = r.answers || [];
-      const percent = r.total > 0 ? Math.round((r.score / r.total) * 100) : 0;
-      const duration = formatDuration(r.duration_seconds);
-      const time = new Date(r.created_at).toLocaleString("vi-VN");
-      if (answers.length === 0) {
-        detailSheetData.push([r.user_name, r.email || "", r.score, r.total, percent, duration, time, "", "", "", ""]);
-      } else {
-        for (const a of answers) {
-          detailSheetData.push([
-            r.user_name,
-            r.email || "",
-            r.score,
-            r.total,
-            percent,
-            duration,
-            time,
-            a.question_text || "",
-            a.options?.[a.selected_index] ?? "",
-            a.options?.[a.correct_index] ?? "",
-            a.is_correct ? "Đúng" : "Sai",
-          ]);
-        }
-      }
+  async function handleSave(e) {
+    e.preventDefault();
+    const name = form.full_name.trim();
+    const email = form.email.trim().toLowerCase();
+    if (!name) {
+      setSaveError("Chưa nhập họ tên.");
+      return;
+    }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      setSaveError("Email không đúng định dạng.");
+      return;
     }
 
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(summarySheetData), "Tong hop");
-    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(hardestSheetData), "Cau hoi hay sai");
-    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(detailSheetData), "Chi tiet");
+    setSaving(true);
+    setSaveError("");
 
-    const periodLabel = selectedPeriod === "all" ? "tat-ca" : selectedPeriod;
-    XLSX.writeFile(wb, `bao-cao-bai-test-${periodLabel}.xlsx`);
+    let error;
+    if (form.id) {
+      ({ error } = await supabase
+        .from("allowed_users")
+        .update({ full_name: name, email })
+        .eq("id", form.id));
+    } else {
+      ({ error } = await supabase.from("allowed_users").insert({ full_name: name, email }));
+    }
+
+    setSaving(false);
+    if (error) {
+      setSaveError(
+        error.message.includes("duplicate") || error.message.includes("unique")
+          ? "Email này đã có trong danh sách rồi."
+          : error.message
+      );
+      return;
+    }
+    setMode("list");
+    loadUsers();
+  }
+
+  async function handleDelete(item) {
+    const confirmed = window.confirm(`Xoá "${item.full_name}" (${item.email}) khỏi danh sách?`);
+    if (!confirmed) return;
+    const { error } = await supabase.from("allowed_users").delete().eq("id", item.id);
+    if (error) {
+      alert("Xoá thất bại: " + error.message);
+      return;
+    }
+    loadUsers();
   }
 
   if (status === "loading") {
     return (
       <div className="card">
-        <p>Đang tải dữ liệu báo cáo...</p>
+        <p>Đang tải danh sách...</p>
       </div>
     );
   }
@@ -197,208 +121,126 @@ export default function ReportPage() {
     );
   }
 
-  const periodSelector = (
-    <div style={{ marginBottom: 20 }}>
-      <label htmlFor="period-select" style={{ display: "block", marginBottom: 6, fontSize: 13, color: "var(--text-dim)" }}>
-        Xem báo cáo của
-      </label>
-      <select
-        id="period-select"
-        className="field"
-        style={{ maxWidth: 260 }}
-        value={selectedPeriod}
-        onChange={(e) => setSelectedPeriod(e.target.value)}
-      >
-        <option value={getCurrentPeriod()}>{formatPeriodLabel(getCurrentPeriod())} (tháng hiện tại)</option>
-        {availablePeriods
-          .filter((p) => p !== getCurrentPeriod())
-          .map((p) => (
-            <option key={p} value={p}>
-              {p === "khong-ro" ? "Không rõ tháng (dữ liệu cũ)" : formatPeriodLabel(p)}
-            </option>
-          ))}
-        <option value="all">Tất cả các tháng</option>
-      </select>
-    </div>
-  );
-
-  if (!stats) {
+  if (mode === "edit") {
     return (
-      <div className="card">
-        <div className="eyebrow">Báo cáo</div>
-        <h2>Chưa có dữ liệu</h2>
-        {periodSelector}
-        <p>Chưa có ai làm bài trong khoảng này cả. Thử chọn tháng khác ở trên, hoặc quay lại
-        sau khi có người hoàn thành bài test.</p>
-        <a href="/">← Quay lại trang chủ</a>
+      <div className="card" style={{ maxWidth: 500 }}>
+        <div className="eyebrow">Quản lý người dùng</div>
+        <h2>{form.id ? "Sửa thông tin" : "Thêm người mới"}</h2>
+
+        <form onSubmit={handleSave}>
+          {saveError && <div className="error-box">{saveError}</div>}
+
+          <label>Họ và tên</label>
+          <input
+            className="field"
+            type="text"
+            value={form.full_name}
+            onChange={(e) => setForm((f) => ({ ...f, full_name: e.target.value }))}
+            placeholder="Ví dụ: Nguyễn Văn Đức"
+          />
+
+          <label>Email cá nhân</label>
+          <input
+            className="field"
+            type="email"
+            value={form.email}
+            onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))}
+            placeholder="ten@gmail.com"
+          />
+
+          <div className="link-row">
+            <button type="submit" className="btn-primary" disabled={saving}>
+              {saving ? "Đang lưu..." : "Lưu"}
+            </button>
+            <button
+              type="button"
+              className="btn-secondary"
+              onClick={() => setMode("list")}
+              disabled={saving}
+            >
+              Huỷ
+            </button>
+          </div>
+        </form>
       </div>
     );
   }
 
   return (
-    <div className="card" style={{ maxWidth: 1000 }}>
-      <div className="eyebrow">Báo cáo</div>
-      <h2>Kết quả tổng hợp</h2>
-      {periodSelector}
+    <div className="card" style={{ maxWidth: 900 }}>
+      <div className="eyebrow">Quản lý người dùng</div>
+      <h1>Danh sách được phép làm bài ({users.length} người)</h1>
+      <p>
+        Chỉ những email có trong danh sách này mới làm bài được. Thêm người mới ở đây khi có
+        nhân sự mới, không cần chỉnh sửa database.
+      </p>
+
+      <input
+        className="field"
+        type="text"
+        placeholder="Tìm theo tên hoặc email..."
+        value={search}
+        onChange={(e) => setSearch(e.target.value)}
+      />
+      <div style={{ display: "flex", justifyContent: "flex-end", marginTop: -8, marginBottom: 18 }}>
+        <button className="btn-primary" onClick={openCreate}>
+          + Thêm người
+        </button>
+      </div>
 
       <div
         style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(4, 1fr)",
-          gap: 12,
-          margin: "20px 0",
+          maxHeight: 560,
+          overflowY: "auto",
+          border: "1px solid var(--panel-border)",
+          borderRadius: 10,
         }}
       >
-        <StatBox label="Lượt làm bài" value={stats.count} />
-        <StatBox label="Điểm TB" value={`${stats.avg}%`} />
-        <StatBox label="Cao nhất" value={`${stats.max}%`} />
-        <StatBox label="Thấp nhất" value={`${stats.min}%`} />
-      </div>
-
-      <button className="btn-primary" onClick={handleExportExcel} style={{ marginBottom: 32 }}>
-        Xuất báo cáo ra Excel
-      </button>
-
-      <h2>Câu hỏi bị sai nhiều nhất</h2>
-      {stats.hardestQuestions.length === 0 ? (
-        <p>Chưa có câu nào bị trả lời sai — mọi người làm tốt lắm!</p>
-      ) : (
-        <table>
+        <table style={{ marginTop: 0 }}>
           <thead>
             <tr>
-              <th>Câu hỏi</th>
-              <th>Sai</th>
-              <th>Tỷ lệ sai</th>
+              <th>Họ tên</th>
+              <th>Email</th>
+              <th></th>
             </tr>
           </thead>
           <tbody>
-            {stats.hardestQuestions.map((q, i) => (
-              <tr key={i}>
-                <td>{q.question}</td>
-                <td>
-                  {q.wrong}/{q.total}
+            {filtered.map((item) => (
+              <tr key={item.id}>
+                <td>{item.full_name}</td>
+                <td style={{ fontFamily: "var(--font-mono)", fontSize: 13 }}>{item.email}</td>
+                <td style={{ whiteSpace: "nowrap" }}>
+                  <button
+                    className="btn-secondary"
+                    style={{ padding: "6px 10px", fontSize: 13, marginRight: 6 }}
+                    onClick={() => openEdit(item)}
+                  >
+                    Sửa
+                  </button>
+                  <button
+                    className="btn-secondary"
+                    style={{ padding: "6px 10px", fontSize: 13, color: "var(--danger)" }}
+                    onClick={() => handleDelete(item)}
+                  >
+                    Xoá
+                  </button>
                 </td>
-                <td>{q.wrongRate}%</td>
               </tr>
             ))}
           </tbody>
         </table>
-      )}
-
-      <h2 style={{ marginTop: 32 }}>Chi tiết từng người</h2>
-      <table>
-        <thead>
-          <tr>
-            <th>Tên</th>
-            <th>Email</th>
-            <th>Số câu đúng</th>
-            <th>Tỉ lệ %</th>
-            <th>Thời gian làm bài</th>
-            <th>Thời gian hoàn thành</th>
-            <th></th>
-          </tr>
-        </thead>
-        <tbody>
-          {results.map((r) => {
-            const percent = r.total > 0 ? Math.round((r.score / r.total) * 100) : 0;
-            return (
-              <>
-                <tr key={r.id}>
-                  <td>{r.user_name}</td>
-                  <td>{r.email || "—"}</td>
-                  <td>
-                    {r.score}/{r.total}
-                  </td>
-                  <td>{percent}%</td>
-                  <td>{formatDuration(r.duration_seconds)}</td>
-                  <td>{new Date(r.created_at).toLocaleString("vi-VN")}</td>
-                  <td>
-                    <button
-                      className="btn-secondary"
-                      style={{ padding: "6px 10px", fontSize: 13 }}
-                      onClick={() => setExpandedId(expandedId === r.id ? null : r.id)}
-                    >
-                      {expandedId === r.id ? "Ẩn" : "Xem"}
-                    </button>
-                  </td>
-                </tr>
-                {expandedId === r.id && (
-                  <tr>
-                    <td colSpan={7} style={{ background: "#0d1620" }}>
-                      {(r.answers || []).length === 0 ? (
-                        <p style={{ margin: "8px 0" }}>
-                          Lượt làm bài này chưa lưu chi tiết từng câu (thực hiện trước khi tính
-                          năng này được bật).
-                        </p>
-                      ) : (
-                        <div style={{ padding: "8px 0" }}>
-                          {r.answers.map((a, i) => (
-                            <div
-                              key={i}
-                              style={{
-                                padding: "8px 0",
-                                borderBottom: "1px solid var(--panel-border)",
-                              }}
-                            >
-                              <div style={{ marginBottom: 4 }}>
-                                {i + 1}. {a.question_text}
-                              </div>
-                              <div style={{ fontSize: 13, color: "var(--text-dim)" }}>
-                                Trả lời: {a.options?.[a.selected_index]} —{" "}
-                                <span
-                                  style={{
-                                    color: a.is_correct ? "var(--ok)" : "var(--danger)",
-                                  }}
-                                >
-                                  {a.is_correct
-                                    ? "Đúng"
-                                    : `Sai (đáp án đúng: ${a.options?.[a.correct_index]})`}
-                                </span>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                    </td>
-                  </tr>
-                )}
-              </>
-            );
-          })}
-        </tbody>
-      </table>
+        {filtered.length === 0 && (
+          <p style={{ padding: 16, textAlign: "center" }}>Không tìm thấy ai khớp.</p>
+        )}
+      </div>
 
       <div className="link-row">
         <a href="/">
           <button className="btn-secondary">← Trang chủ</button>
         </a>
-        <a href="/dashboard">
-          <button className="btn-primary">Xem dashboard</button>
+        <a href="/admin-questions">
+          <button className="btn-secondary">Quản lý câu hỏi</button>
         </a>
-        <button className="btn-secondary" onClick={handleLogout}>
-          Đăng xuất
-        </button>
-      </div>
-    </div>
-  );
-}
-
-function StatBox({ label, value }) {
-  return (
-    <div
-      style={{
-        background: "#0d1620",
-        border: "1px solid var(--panel-border)",
-        borderRadius: 10,
-        padding: "14px 12px",
-        textAlign: "center",
-      }}
-    >
-      <div style={{ fontSize: 22, fontFamily: "var(--font-mono)", color: "var(--amber)" }}>
-        {value}
-      </div>
-      <div style={{ fontSize: 11, color: "var(--text-dim)", marginTop: 4, textTransform: "uppercase" }}>
-        {label}
       </div>
     </div>
   );

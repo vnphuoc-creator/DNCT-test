@@ -4,13 +4,13 @@
 // chính của toàn bộ giao diện, gợi liên tưởng tới các đồng hồ đo áp suất/
 // điện áp trên tủ điều khiển mà đối tượng người dùng (đội kỹ thuật vận
 // hành) làm việc hằng ngày.
-export default function ScoreGauge({ percent, size = 176, label = "ĐIỂM SỐ" }) {
+export default function ScoreGauge({ percent, size = 176, label = "ĐIỂM SỐ", passThreshold = 50 }) {
   const clamped = Math.max(0, Math.min(100, percent));
   const radius = size / 2 - 14;
   const center = size / 2;
   const circumference = 2 * Math.PI * radius;
   const offset = circumference * (1 - clamped / 100);
-  const color = clamped >= 50 ? "var(--ok)" : "var(--danger)";
+  const color = clamped >= passThreshold ? "var(--ok)" : "var(--danger)";
 
   const ticks = Array.from({ length: 12 }, (_, i) => {
     const angle = (i / 12) * 360 - 90;
