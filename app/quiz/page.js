@@ -3,11 +3,11 @@
 import { useEffect, useRef, useState } from "react";
 import { supabase } from "../../lib/supabaseClient";
 import { getQuizWindowStatus, formatWindowMessage } from "../../lib/quizWindow";
+import { getSettings } from "../../lib/settings";
 import { getCurrentPeriod, formatPeriodLabel } from "../../lib/period";
 import ScoreGauge from "../components/ScoreGauge";
 
-// Số câu hỏi ngẫu nhiên cho mỗi lượt làm bài (đổi số này nếu muốn nhiều/ít hơn)
-const QUESTIONS_PER_QUIZ = 25;
+// Giá trị mặc định dự phòng — có thể ghi đè động qua trang Cài đặt (app_settings)
 
 function shuffle(array) {
   const copy = [...array];
@@ -49,7 +49,8 @@ function pickEvenlyAcrossCategories(allQuestions, count) {
   return shuffle(picked); // trộn lại thứ tự cuối cùng để không lộ theo nhóm
 }
 
-const PASS_THRESHOLD = 80;
+const DEFAULT_QUESTIONS_PER_QUIZ = 25;
+const DEFAULT_PASS_THRESHOLD = 80;
 
 const CONGRATS_MESSAGES = [
   "Xuất sắc! Bạn nắm kiến thức rất chắc, cứ giữ phong độ này nhé! 🎉",
@@ -63,8 +64,8 @@ const ENCOURAGE_MESSAGES = [
   "Gần được rồi! Dành chút thời gian ôn lại các câu đã sai, lần sau bạn sẽ làm tốt hơn nhiều. 💪",
 ];
 
-function getResultMessage(percent) {
-  const pool = percent >= PASS_THRESHOLD ? CONGRATS_MESSAGES : ENCOURAGE_MESSAGES;
+function getResultMessage(percent, threshold) {
+  const pool = percent >= threshold ? CONGRATS_MESSAGES : ENCOURAGE_MESSAGES;
   return pool[Math.floor(Math.random() * pool.length)];
 }
 
@@ -79,6 +80,8 @@ export default function QuizPage() {
   const [score, setScore] = useState(0);
   const [saving, setSaving] = useState(false);
   const [resultMessage, setResultMessage] = useState("");
+  const [questionsPerQuiz, setQuestionsPerQuiz] = useState(DEFAULT_QUESTIONS_PER_QUIZ);
+  const [passThreshold, setPassThreshold] = useState(DEFAULT_PASS_THRESHOLD);
   const [userAnswers, setUserAnswers] = useState([]);
   const startTimeRef = useRef(null);
 
@@ -90,19 +93,32 @@ export default function QuizPage() {
       return;
     }
 
-    const windowStatus = getQuizWindowStatus();
-    if (!windowStatus.open) {
-      setErrorMsg(formatWindowMessage(windowStatus));
-      setStatus("error");
-      return;
-    }
+    async function init() {
+      const [windowStatus, settings] = await Promise.all([getQuizWindowStatus(), getSettings()]);
+      if (!windowStatus.open) {
+        setErrorMsg(formatWindowMessage(windowStatus));
+        setStatus("error");
+        return;
+      }
 
-    setUserName(savedName);
-    setUserEmail(savedEmail);
-    checkAlreadyTakenThenLoad(savedEmail);
+      if (settings.quiz_questions_count) {
+        setQuestionsPerQuiz(parseInt(settings.quiz_questions_count, 10) || DEFAULT_QUESTIONS_PER_QUIZ);
+      }
+      if (settings.quiz_pass_threshold) {
+        setPassThreshold(parseInt(settings.quiz_pass_threshold, 10) || DEFAULT_PASS_THRESHOLD);
+      }
+
+      setUserName(savedName);
+      setUserEmail(savedEmail);
+      checkAlreadyTakenThenLoad(
+        savedEmail,
+        parseInt(settings.quiz_questions_count, 10) || DEFAULT_QUESTIONS_PER_QUIZ
+      );
+    }
+    init();
   }, []);
 
-  async function checkAlreadyTakenThenLoad(emailToCheck) {
+  async function checkAlreadyTakenThenLoad(emailToCheck, questionsCount) {
     const { data, error } = await supabase
       .from("quiz_results")
       .select("id, score, total")
@@ -122,10 +138,10 @@ export default function QuizPage() {
       setStatus("error");
       return;
     }
-    loadQuestions();
+    loadQuestions(questionsCount);
   }
 
-  async function loadQuestions() {
+  async function loadQuestions(questionsCount) {
     const { data, error } = await supabase.from("questions").select("*");
 
     if (error) {
@@ -140,7 +156,7 @@ export default function QuizPage() {
       setStatus("error");
       return;
     }
-    setQuestions(pickEvenlyAcrossCategories(data, QUESTIONS_PER_QUIZ));
+    setQuestions(pickEvenlyAcrossCategories(data, questionsCount));
     startTimeRef.current = Date.now();
     setStatus("playing");
   }
@@ -176,9 +192,13 @@ export default function QuizPage() {
   }
 
   async function finishQuiz(finalScore, answers) {
-    const windowStatus = getQuizWindowStatus();
+    const windowStatus = await getQuizWindowStatus();
     if (!windowStatus.open) {
-      setErrorMsg("Kỳ thi hiện tại đang đóng (chỉ mở từ ngày 27 đến 30 hằng tháng). Kết quả không được ghi nhận.");
+      setErrorMsg(
+        "Kỳ thi hiện tại đang đóng (" +
+          formatWindowMessage(windowStatus) +
+          "). Kết quả không được ghi nhận."
+      );
       setStatus("error");
       return;
     }
@@ -203,7 +223,7 @@ export default function QuizPage() {
       );
     }
     const finalPercent = Math.round((score / questions.length) * 100);
-    setResultMessage(getResultMessage(finalPercent));
+    setResultMessage(getResultMessage(finalPercent, passThreshold));
     setStatus("finished");
   }
 
@@ -226,7 +246,7 @@ export default function QuizPage() {
 
   if (status === "finished") {
     const percent = Math.round((score / questions.length) * 100);
-    const passed = percent >= PASS_THRESHOLD;
+    const passed = percent >= passThreshold;
     return (
       <div className="card">
         <div className="eyebrow">Kết quả</div>
@@ -235,7 +255,7 @@ export default function QuizPage() {
         <ScoreGauge
           percent={percent}
           label={`${score}/${questions.length} CÂU ĐÚNG`}
-          passThreshold={PASS_THRESHOLD}
+          passThreshold={passThreshold}
         />
         <div
           className="result-message"

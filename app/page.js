@@ -12,6 +12,7 @@ import {
   LayoutDashboard,
   ListChecks,
   Users,
+  Settings,
   Search,
   CheckCircle2,
   Sparkles,
@@ -34,8 +35,11 @@ export default function HomePage() {
   const boxRef = useRef(null);
 
   useEffect(() => {
-    setWindowStatus(getQuizWindowStatus());
-    loadUsers();
+    async function init() {
+      setWindowStatus(await getQuizWindowStatus());
+      loadUsers();
+    }
+    init();
 
     function handleClickOutside(e) {
       if (boxRef.current && !boxRef.current.contains(e.target)) {
@@ -90,7 +94,7 @@ export default function HomePage() {
       return;
     }
 
-    const status = getQuizWindowStatus();
+    const status = await getQuizWindowStatus();
     if (!status.open) {
       setError(formatWindowMessage(status));
       return;
@@ -297,6 +301,12 @@ export default function HomePage() {
             <Users size={18} />
           </span>
           <span className="nav-tile-label">Danh sách Nhân sự</span>
+        </a>
+        <a href="/admin-settings" className="nav-tile">
+          <span className="nav-tile-icon" style={{ color: "var(--text)", background: "rgba(148, 163, 184, 0.15)" }}>
+            <Settings size={18} />
+          </span>
+          <span className="nav-tile-label">Cài đặt Hệ thống</span>
         </a>
       </div>
     </div>
