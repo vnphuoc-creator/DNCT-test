@@ -1,5 +1,28 @@
 # Bài Test Kiến Thức — Hướng dẫn cho người mới
 
+## ⚠️ Đã xác định: lỗi build "TypeScript... do not have the required package(s)"
+
+Nếu Vercel báo lỗi build kiểu "It looks like you're trying to use TypeScript but do not have the
+required package(s) installed" — nguyên nhân là trong repo GitHub của bạn đang có sẵn 1 file
+**`tsconfig.json`** (và có thể cả `next-env.d.ts`) còn sót lại từ rất lâu, có thể từ lúc khởi tạo
+project ban đầu. Dự án này hoàn toàn là JavaScript, không cần 2 file này.
+
+**Cách sửa** (làm trực tiếp trên GitHub, không cần upload lại code):
+
+1. Vào repo trên GitHub → tìm file `tsconfig.json` ở ngay thư mục gốc (nếu có cả
+   `next-env.d.ts` thì làm tương tự)
+2. Bấm vào file đó → bấm icon **thùng rác** (hoặc nút **"..."** → **Delete file**) ở góc trên bên
+   phải
+3. Kéo xuống, bấm **Commit changes**
+
+Xong bước này, Vercel sẽ tự động build lại và hết lỗi ngay — không cần upload lại bất kỳ file nào
+khác, vì đây là do 1 file thừa gây lỗi, không phải do thiếu code.
+
+*(Mình đã build thử lại toàn bộ project sau khi bỏ 2 file này — chạy sạch hoàn toàn, đủ 17
+trang, không còn lỗi.)*
+
+---
+
 ## Đã xong: Trang Cài đặt hệ thống (mới) — tự quản lý lịch thi, không cần deploy lại
 
 ### Bắt buộc: chạy 1 file SQL trước khi dùng
