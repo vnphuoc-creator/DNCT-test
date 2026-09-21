@@ -3,6 +3,21 @@
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "../../lib/supabaseClient";
 import { FIXED_CATEGORIES } from "../../lib/categories";
+import {
+  Upload,
+  FileText,
+  FileSpreadsheet,
+  CheckCircle2,
+  AlertCircle,
+  Plus,
+  Trash2,
+  Edit,
+  Search,
+  RefreshCw,
+  Layers,
+  ArrowRight,
+  HelpCircle,
+} from "lucide-react";
 
 const emptyForm = {
   id: null,
@@ -26,10 +41,25 @@ export default function AdminQuestionsPage() {
   const [saveError, setSaveError] = useState("");
   const [uploadingImage, setUploadingImage] = useState(false);
   const [customCategory, setCustomCategory] = useState(false);
+  const [toastMsg, setToastMsg] = useState("");
+
+  // State cho Modal Import File (Word, PDF, Excel) - Yêu cầu 5
+  const [showImportModal, setShowImportModal] = useState(false);
+  const [importFile, setImportFile] = useState(null);
+  const [importCategory, setImportCategory] = useState("auto");
+  const [parsing, setParsing] = useState(false);
+  const [parsedPreview, setParsedPreview] = useState(null);
+  const [savingImport, setSavingImport] = useState(false);
+  const [importError, setImportError] = useState("");
 
   useEffect(() => {
     loadQuestions();
   }, []);
+
+  function showToast(msg) {
+    setToastMsg(msg);
+    setTimeout(() => setToastMsg(""), 5000);
+  }
 
   async function loadQuestions() {
     setStatus("loading");
@@ -58,7 +88,6 @@ export default function AdminQuestionsPage() {
     });
   }, [questions, search, categoryFilter]);
 
-  // Đếm số câu mỗi chủ đề, để hiện luôn trong dropdown cho dễ hình dung
   const categoryCounts = useMemo(() => {
     const counts = {};
     for (const q of questions) {
@@ -86,7 +115,6 @@ export default function AdminQuestionsPage() {
       explanation: item.explanation || "",
       image_url: item.image_url || "",
     });
-    // Nếu chủ đề hiện tại không nằm trong danh sách cố định, mở sẵn ô gõ tự do
     setCustomCategory(cat !== "" && !FIXED_CATEGORIES.includes(cat));
     setSaveError("");
     setMode("edit");
@@ -120,30 +148,31 @@ export default function AdminQuestionsPage() {
       setSaveError("Chỉ chọn được file ảnh (jpg, png, webp...).");
       return;
     }
-    if (file.size > 5 * 1024 * 1024) {
-      setSaveError("Ảnh quá lớn, chọn ảnh dưới 5MB nhé.");
-      return;
-    }
 
     setUploadingImage(true);
     setSaveError("");
 
-    const ext = file.name.split(".").pop();
-    const fileName = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
+    try {
+      const ext = file.name.split(".").pop();
+      const filename = `question_${Date.now()}_${Math.random().toString(36).slice(2, 7)}.${ext}`;
+      const { data, error } = await supabase.storage.from("questions").upload(filename, file, {
+        cacheControl: "3600",
+        upsert: false,
+      });
 
-    const { error: uploadError } = await supabase.storage
-      .from("question-images")
-      .upload(fileName, file);
+      if (error) {
+        setSaveError("Lỗi tải ảnh lên Supabase Storage: " + error.message);
+        setUploadingImage(false);
+        return;
+      }
 
-    if (uploadError) {
-      setUploadingImage(false);
-      setSaveError("Tải ảnh lên thất bại: " + uploadError.message);
-      return;
+      const { data: publicUrlData } = supabase.storage.from("questions").getPublicUrl(filename);
+      if (publicUrlData && publicUrlData.publicUrl) {
+        setForm((f) => ({ ...f, image_url: publicUrlData.publicUrl }));
+      }
+    } catch (err) {
+      setSaveError("Lỗi ngoại lệ khi tải ảnh: " + err.message);
     }
-
-    const { data: urlData } = supabase.storage.from("question-images").getPublicUrl(fileName);
-
-    setForm((f) => ({ ...f, image_url: urlData.publicUrl }));
     setUploadingImage(false);
   }
 
@@ -151,29 +180,31 @@ export default function AdminQuestionsPage() {
     setForm((f) => ({ ...f, image_url: "" }));
   }
 
-  function validateForm() {
-    if (!form.question_text.trim()) return "Chưa nhập nội dung câu hỏi.";
-    const cleanedOptions = form.options.map((o) => o.trim());
-    if (cleanedOptions.some((o) => o === "")) return "Có đáp án đang để trống.";
-    if (cleanedOptions.length < 2) return "Cần ít nhất 2 đáp án.";
-    if (form.correct_index < 0 || form.correct_index >= cleanedOptions.length)
-      return "Chưa chọn đáp án đúng hợp lệ.";
-    return "";
-  }
-
-  async function handleSave(e) {
+  async function handleSaveSingle(e) {
     e.preventDefault();
-    const validationError = validateForm();
-    if (validationError) {
-      setSaveError(validationError);
+    setSaveError("");
+
+    if (!form.question_text.trim()) {
+      setSaveError("Vui lòng nhập nội dung câu hỏi.");
       return;
     }
+
+    const cleanedOptions = form.options.map((o) => o.trim()).filter(Boolean);
+    if (cleanedOptions.length < 2) {
+      setSaveError("Câu hỏi cần ít nhất 2 đáp án.");
+      return;
+    }
+
+    if (form.correct_index < 0 || form.correct_index >= cleanedOptions.length) {
+      setSaveError("Vui lòng chọn 1 đáp án đúng.");
+      return;
+    }
+
     setSaving(true);
-    setSaveError("");
 
     const payload = {
       question_text: form.question_text.trim(),
-      options: form.options.map((o) => o.trim()),
+      options: cleanedOptions,
       correct_index: form.correct_index,
       category: form.category.trim() || null,
       explanation: form.explanation.trim() || null,
@@ -182,121 +213,188 @@ export default function AdminQuestionsPage() {
 
     let error;
     if (form.id) {
-      ({ error } = await supabase.from("questions").update(payload).eq("id", form.id));
+      const res = await supabase.from("questions").update(payload).eq("id", form.id);
+      error = res.error;
     } else {
-      ({ error } = await supabase.from("questions").insert(payload));
+      const res = await supabase.from("questions").insert(payload);
+      error = res.error;
     }
 
     setSaving(false);
     if (error) {
-      setSaveError(error.message);
+      setSaveError("Lỗi lưu câu hỏi: " + error.message);
       return;
     }
+
+    showToast(form.id ? "✓ Đã cập nhật câu hỏi!" : "✓ Đã thêm câu hỏi mới!");
     setMode("list");
     loadQuestions();
   }
 
   async function handleDelete(item) {
-    const confirmed = window.confirm(
-      `Xoá câu hỏi này?\n\n"${item.question_text}"\n\nKhông thể khôi phục lại được.`
-    );
-    if (!confirmed) return;
-    const { error } = await supabase.from("questions").delete().eq("id", item.id);
-    if (error) {
-      alert("Xoá thất bại: " + error.message);
+    if (!confirm(`Bạn có chắc muốn xoá câu hỏi #${item.id}: "${item.question_text.slice(0, 40)}..."?`)) {
       return;
     }
+    const { error } = await supabase.from("questions").delete().eq("id", item.id);
+    if (error) {
+      alert("Lỗi xoá câu hỏi: " + error.message);
+      return;
+    }
+    showToast("✓ Đã xoá câu hỏi!");
     loadQuestions();
   }
 
-  if (status === "loading") {
-    return (
-      <div className="card">
-        <p>Đang tải danh sách câu hỏi...</p>
-      </div>
-    );
+  // --- XỬ LÝ IMPORT FILE WORD (.docx), PDF (.pdf), EXCEL (.xlsx) (YÊU CẦU 5) ---
+  async function handleAnalyzeFile(e) {
+    e.preventDefault();
+    if (!importFile) {
+      setImportError("Vui lòng chọn một file Word, PDF hoặc Excel.");
+      return;
+    }
+
+    setParsing(true);
+    setImportError("");
+    setParsedPreview(null);
+
+    try {
+      const formData = new FormData();
+      formData.append("file", importFile);
+      formData.append("category", importCategory);
+
+      const res = await fetch("/api/admin/parse-questions", {
+        method: "POST",
+        body: formData,
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        setImportError(data.error || "Không thể phân tích file.");
+        setParsing(false);
+        return;
+      }
+
+      setParsedPreview(data);
+    } catch (err) {
+      setImportError("Lỗi kết nối khi phân tích file: " + err.message);
+    }
+    setParsing(false);
   }
 
-  if (status === "error") {
-    return (
-      <div className="card">
-        <div className="error-box">{errorMsg}</div>
-        <a href="/">← Quay lại trang chủ</a>
-      </div>
-    );
+  async function handleConfirmSaveImport() {
+    if (!parsedPreview || !parsedPreview.questions || parsedPreview.questions.length === 0) {
+      return;
+    }
+
+    setSavingImport(true);
+    setImportError("");
+
+    try {
+      const questionsToInsert = parsedPreview.questions.map((q) => ({
+        question_text: q.question_text,
+        options: q.options,
+        correct_index: q.correct_index,
+        category: q.category || null,
+        explanation: q.explanation || null,
+        image_url: q.image_url || null,
+      }));
+
+      const { data, error } = await supabase.from("questions").insert(questionsToInsert).select("id");
+
+      if (error) {
+        setImportError("Lỗi lưu vào Supabase: " + error.message);
+        setSavingImport(false);
+        return;
+      }
+
+      const count = data ? data.length : questionsToInsert.length;
+      showToast(`✓ Đã nhập thành công ${count} câu hỏi vào Ngân hàng câu hỏi!`);
+      setShowImportModal(false);
+      setImportFile(null);
+      setParsedPreview(null);
+      await loadQuestions();
+    } catch (err) {
+      setImportError("Lỗi ngoại lệ khi lưu: " + err.message);
+    }
+    setSavingImport(false);
   }
 
   if (mode === "edit") {
     return (
-      <div className="card" style={{ maxWidth: 640 }}>
-        <div className="eyebrow">Quản lý câu hỏi</div>
-        <h2>{form.id ? "Sửa câu hỏi" : "Thêm câu hỏi mới"}</h2>
+      <div className="card" style={{ maxWidth: 840, margin: "0 auto" }}>
+        <div className="eyebrow">{form.id ? "Chỉnh sửa câu hỏi" : "Thêm câu hỏi mới"}</div>
+        <h1 style={{ fontSize: 22, fontWeight: 800, margin: "4px 0 16px 0" }}>
+          {form.id ? `Câu hỏi #${form.id}` : "Tạo câu hỏi mới"}
+        </h1>
 
-        <form onSubmit={handleSave}>
-          {saveError && <div className="error-box">{saveError}</div>}
+        {saveError && <div className="error-box">{saveError}</div>}
 
+        <form onSubmit={handleSaveSingle}>
           <label>Nội dung câu hỏi</label>
           <textarea
             className="field"
             rows={3}
             value={form.question_text}
             onChange={(e) => setForm((f) => ({ ...f, question_text: e.target.value }))}
+            placeholder="Nhập nội dung câu hỏi..."
+            required
           />
 
-          <label>Chủ đề</label>
-          {customCategory ? (
-            <>
+          <label>Chủ đề / Hệ thống</label>
+          {!customCategory ? (
+            <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
+              <select
+                className="field"
+                style={{ flex: 1, margin: 0 }}
+                value={form.category}
+                onChange={(e) => {
+                  if (e.target.value === "__custom__") {
+                    setCustomCategory(true);
+                    setForm((f) => ({ ...f, category: "" }));
+                  } else {
+                    setForm((f) => ({ ...f, category: e.target.value }));
+                  }
+                }}
+              >
+                <option value="">— Chọn một hệ thống —</option>
+                {FIXED_CATEGORIES.map((c) => (
+                  <option key={c} value={c}>
+                    {c}
+                  </option>
+                ))}
+                <option value="__custom__">+ Nhập chủ đề tuỳ ý khác...</option>
+              </select>
+            </div>
+          ) : (
+            <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
               <input
                 className="field"
+                style={{ flex: 1, margin: 0 }}
                 type="text"
+                placeholder="Gõ tên chủ đề mới..."
                 value={form.category}
                 onChange={(e) => setForm((f) => ({ ...f, category: e.target.value }))}
-                placeholder="Gõ tên chủ đề mới..."
               />
               <button
                 type="button"
                 className="btn-secondary"
-                style={{ marginTop: -10, marginBottom: 18, fontSize: 13, padding: "6px 10px" }}
                 onClick={() => {
                   setCustomCategory(false);
                   setForm((f) => ({ ...f, category: "" }));
                 }}
               >
-                ← Chọn từ danh sách có sẵn
+                Chọn từ danh sách
               </button>
-            </>
-          ) : (
-            <select
-              className="field"
-              value={form.category}
-              onChange={(e) => {
-                if (e.target.value === "__custom__") {
-                  setCustomCategory(true);
-                  setForm((f) => ({ ...f, category: "" }));
-                } else {
-                  setForm((f) => ({ ...f, category: e.target.value }));
-                }
-              }}
-            >
-              <option value="">— Chưa chọn chủ đề —</option>
-              {FIXED_CATEGORIES.map((c) => (
-                <option key={c} value={c}>
-                  {c}
-                </option>
-              ))}
-              <option value="__custom__">+ Chủ đề khác (gõ tay)...</option>
-            </select>
+            </div>
           )}
 
           <label>Hình ảnh minh hoạ (không bắt buộc)</label>
           {form.image_url ? (
-            <div style={{ marginBottom: 18 }}>
+            <div style={{ marginBottom: 16 }}>
               <img
                 src={form.image_url}
-                alt="Ảnh minh hoạ câu hỏi"
+                alt=""
                 style={{
-                  maxWidth: "100%",
-                  maxHeight: 220,
+                  maxHeight: 200,
                   borderRadius: 8,
                   border: "1px solid var(--panel-border)",
                   display: "block",
@@ -316,11 +414,8 @@ export default function AdminQuestionsPage() {
               disabled={uploadingImage}
             />
           )}
-          {uploadingImage && (
-            <p style={{ marginTop: -10, fontSize: 13 }}>Đang tải ảnh lên...</p>
-          )}
 
-          <label>Các đáp án (bấm vào nút tròn để chọn đáp án đúng)</label>
+          <label>Các đáp án (chọn nút tròn cho đáp án đúng)</label>
           {form.options.map((opt, i) => (
             <div key={i} style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 8 }}>
               <input
@@ -338,6 +433,7 @@ export default function AdminQuestionsPage() {
                 value={opt}
                 onChange={(e) => updateOption(i, e.target.value)}
                 placeholder={`Đáp án ${i + 1}`}
+                required
               />
               {form.options.length > 2 && (
                 <button
@@ -371,7 +467,7 @@ export default function AdminQuestionsPage() {
             placeholder="Vì sao đáp án này đúng..."
           />
 
-          <div className="link-row">
+          <div className="link-row" style={{ marginTop: 16 }}>
             <button type="submit" className="btn-primary" disabled={saving || uploadingImage}>
               {saving ? "Đang lưu..." : "Lưu câu hỏi"}
             </button>
@@ -390,26 +486,95 @@ export default function AdminQuestionsPage() {
   }
 
   return (
-    <div className="card" style={{ maxWidth: 1040 }}>
-      <div className="eyebrow">Quản lý câu hỏi</div>
-      <h1>Ngân hàng câu hỏi ({questions.length} câu)</h1>
+    <div className="card" style={{ maxWidth: 1040, margin: "0 auto" }}>
+      {/* Header & Toast */}
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: 12, marginBottom: 12 }}>
+        <div>
+          <div className="eyebrow" style={{ color: "var(--brand-cyan)", fontWeight: 700 }}>
+            QUẢN TRỊ NGÂN HÀNG CÂU HỎI
+          </div>
+          <h1 style={{ fontSize: 24, fontWeight: 800, margin: "4px 0 6px 0" }}>
+            Ngân hàng Câu hỏi Sát hạch ({questions.length} câu)
+          </h1>
+          <p style={{ fontSize: 13, color: "var(--text-dim)", margin: 0 }}>
+            Quản lý, thêm mới hoặc nhập hàng loạt từ file Word (.docx), PDF (.pdf), Excel (.xlsx).
+          </p>
+        </div>
 
-      <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-        <input
-          className="field"
-          style={{ flex: 2, minWidth: 220 }}
-          type="text"
-          placeholder="Tìm theo nội dung câu hỏi hoặc chủ đề..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-        />
+        {/* Action Buttons */}
+        <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+          <button
+            type="button"
+            className="btn-primary"
+            style={{
+              background: "linear-gradient(135deg, #0284c7 0%, #0369a1 100%)",
+              fontSize: 13.5,
+              padding: "0 16px",
+              height: 38,
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 6,
+            }}
+            onClick={() => {
+              setShowImportModal(true);
+              setParsedPreview(null);
+              setImportError("");
+            }}
+          >
+            <Upload size={16} /> Import từ File (Word, PDF, Excel)
+          </button>
+          <button
+            type="button"
+            className="btn-primary"
+            style={{ fontSize: 13.5, padding: "0 16px", height: 38, display: "inline-flex", alignItems: "center", gap: 6 }}
+            onClick={openCreate}
+          >
+            <Plus size={16} /> Thêm câu hỏi thủ công
+          </button>
+        </div>
+      </div>
+
+      {toastMsg && (
+        <div
+          style={{
+            background: "rgba(16, 185, 129, 0.15)",
+            border: "1px solid rgba(16, 185, 129, 0.4)",
+            borderRadius: 8,
+            padding: "10px 14px",
+            marginBottom: 16,
+            display: "flex",
+            alignItems: "center",
+            gap: 8,
+            color: "#34d399",
+            fontSize: 13,
+            fontWeight: 600,
+          }}
+        >
+          <CheckCircle2 size={16} />
+          <span>{toastMsg}</span>
+        </div>
+      )}
+
+      {/* Filter Bar */}
+      <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 16 }}>
+        <div style={{ position: "relative", flex: 2, minWidth: 240 }}>
+          <input
+            className="field"
+            style={{ paddingLeft: 36, margin: 0 }}
+            type="text"
+            placeholder="Tìm theo nội dung câu hỏi hoặc chủ đề..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+          />
+          <Search size={16} style={{ position: "absolute", left: 12, top: 13, color: "var(--text-dim)" }} />
+        </div>
         <select
           className="field"
-          style={{ flex: 1, minWidth: 200 }}
+          style={{ flex: 1, minWidth: 220, margin: 0 }}
           value={categoryFilter}
           onChange={(e) => setCategoryFilter(e.target.value)}
         >
-          <option value="">Tất cả chủ đề ({questions.length} câu)</option>
+          <option value="">Tất cả các hệ thống ({questions.length} câu)</option>
           {FIXED_CATEGORIES.map((c) => (
             <option key={c} value={c}>
               {c} ({categoryCounts[c] || 0})
@@ -422,26 +587,22 @@ export default function AdminQuestionsPage() {
           )}
         </select>
       </div>
-      <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 10, marginBottom: 18 }}>
-        <button className="btn-primary" onClick={openCreate}>
-          + Thêm câu hỏi
-        </button>
-      </div>
 
-      <div style={{ maxHeight: 560, overflowY: "auto", border: "1px solid var(--panel-border)", borderRadius: 10 }}>
+      {/* Questions Table */}
+      <div style={{ maxHeight: 580, overflowY: "auto", border: "1px solid var(--panel-border)", borderRadius: 10 }}>
         <table style={{ marginTop: 0 }}>
           <thead>
             <tr>
-              <th></th>
-              <th>Câu hỏi</th>
-              <th>Chủ đề</th>
-              <th></th>
+              <th style={{ width: 44 }}></th>
+              <th>Nội dung Câu hỏi</th>
+              <th style={{ width: 220 }}>Chủ đề / Hệ thống</th>
+              <th style={{ width: 130, textAlign: "center" }}>Thao tác</th>
             </tr>
           </thead>
           <tbody>
             {filtered.map((item) => (
               <tr key={item.id}>
-                <td style={{ width: 44 }}>
+                <td>
                   {item.image_url && (
                     <img
                       src={item.image_url}
@@ -450,19 +611,38 @@ export default function AdminQuestionsPage() {
                     />
                   )}
                 </td>
-                <td>{item.question_text}</td>
-                <td style={{ whiteSpace: "nowrap" }}>{item.category || "—"}</td>
-                <td style={{ whiteSpace: "nowrap" }}>
+                <td>
+                  <div style={{ fontWeight: 600, color: "var(--text)" }}>{item.question_text}</div>
+                  <div style={{ fontSize: 11.5, color: "var(--text-dim)", marginTop: 4 }}>
+                    {item.options ? item.options.length : 0} phương án • Đáp án đúng:{" "}
+                    <strong>{String.fromCharCode(65 + (item.correct_index || 0))}</strong>
+                  </div>
+                </td>
+                <td>
+                  <span
+                    style={{
+                      fontSize: 11.5,
+                      padding: "3px 8px",
+                      borderRadius: 4,
+                      background: "rgba(255,255,255,0.05)",
+                      color: "var(--brand-cyan)",
+                      display: "inline-block",
+                    }}
+                  >
+                    {item.category || "Chưa phân loại"}
+                  </span>
+                </td>
+                <td style={{ textAlign: "center", whiteSpace: "nowrap" }}>
                   <button
                     className="btn-secondary"
-                    style={{ padding: "6px 10px", fontSize: 13, marginRight: 6 }}
+                    style={{ padding: "5px 10px", fontSize: 12, marginRight: 6 }}
                     onClick={() => openEdit(item)}
                   >
                     Sửa
                   </button>
                   <button
                     className="btn-secondary"
-                    style={{ padding: "6px 10px", fontSize: 13, color: "var(--danger)" }}
+                    style={{ padding: "5px 10px", fontSize: 12, color: "var(--danger)" }}
                     onClick={() => handleDelete(item)}
                   >
                     Xoá
@@ -473,15 +653,254 @@ export default function AdminQuestionsPage() {
           </tbody>
         </table>
         {filtered.length === 0 && (
-          <p style={{ padding: 16, textAlign: "center" }}>Không tìm thấy câu hỏi nào khớp.</p>
+          <p style={{ padding: 24, textAlign: "center", color: "var(--text-dim)", margin: 0 }}>
+            Không tìm thấy câu hỏi nào phù hợp với bộ lọc.
+          </p>
         )}
       </div>
 
-      <div className="link-row">
+      {/* Footer Navigation */}
+      <div className="link-row" style={{ marginTop: 20, justifyContent: "space-between" }}>
         <a href="/">
-          <button className="btn-secondary">← Trang chủ</button>
+          <button type="button" className="btn-secondary">← Trang chủ</button>
         </a>
+        <div style={{ display: "flex", gap: 10 }}>
+          <a href="/admin-settings">
+            <button type="button" className="btn-secondary">Cài đặt Hệ thống & Bộ đề</button>
+          </a>
+          <a href="/dashboard">
+            <button type="button" className="btn-secondary">Dashboard Quản lý</button>
+          </a>
+        </div>
       </div>
+
+      {/* MODAL IMPORT TỪ FILE WORD / PDF / EXCEL (YÊU CẦU 5) */}
+      {showImportModal && (
+        <div
+          style={{
+            position: "fixed",
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            background: "rgba(0,0,0,0.85)",
+            backdropFilter: "blur(4px)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 9999,
+            padding: 16,
+          }}
+        >
+          <div
+            className="card"
+            style={{
+              maxWidth: 780,
+              width: "100%",
+              maxHeight: "90vh",
+              overflowY: "auto",
+              border: "1px solid var(--panel-border)",
+            }}
+          >
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 8, color: "var(--brand-cyan)", fontWeight: 700, fontSize: 16 }}>
+                <Upload size={18} /> Nhập Câu hỏi từ File (Word .docx, PDF, Excel .xlsx)
+              </div>
+              <button
+                type="button"
+                className="btn-secondary"
+                style={{ padding: "4px 10px", fontSize: 12 }}
+                onClick={() => {
+                  setShowImportModal(false);
+                  setParsedPreview(null);
+                }}
+              >
+                ✕ Đóng
+              </button>
+            </div>
+
+            {importError && <div className="error-box" style={{ marginBottom: 14 }}>{importError}</div>}
+
+            {/* Bước 1: Chọn file và Chọn Hệ cần Import */}
+            {!parsedPreview ? (
+              <form onSubmit={handleAnalyzeFile}>
+                <div style={{ marginBottom: 16 }}>
+                  <label style={{ fontSize: 13, fontWeight: 600, color: "#fff", display: "block", marginBottom: 6 }}>
+                    1. Chọn file tài liệu câu hỏi (.docx, .pdf, .xlsx, .txt)
+                  </label>
+                  <input
+                    type="file"
+                    className="field"
+                    accept=".docx,.pdf,.xlsx,.xls,.txt"
+                    onChange={(e) => setImportFile(e.target.files?.[0] || null)}
+                    required
+                  />
+                  <div style={{ fontSize: 11.5, color: "var(--text-dim)", marginTop: 4 }}>
+                    Hỗ trợ định dạng Word (.docx), PDF (.pdf), Excel (.xlsx) với cấu trúc câu hỏi rõ ràng (Ví dụ: &quot;Câu 1: ...&quot;, &quot;A. ...&quot;, &quot;B. ...&quot;, &quot;Đáp án: A&quot;).
+                  </div>
+                </div>
+
+                {/* Dropdown Chọn Hệ (Category) để gán cho các câu hỏi */}
+                <div style={{ marginBottom: 20 }}>
+                  <label style={{ fontSize: 13, fontWeight: 600, color: "#fff", display: "block", marginBottom: 6 }}>
+                    2. Chọn Hệ thống / Chủ đề để gán cho toàn bộ câu hỏi trong file này:
+                  </label>
+                  <select
+                    className="field"
+                    value={importCategory}
+                    onChange={(e) => setImportCategory(e.target.value)}
+                  >
+                    <option value="auto">⚡ Tự động nhận diện hệ thống theo nội dung từng câu hỏi</option>
+                    <optgroup label="Hoặc gán cố định cho một Hệ thống cụ thể:">
+                      {FIXED_CATEGORIES.map((cat) => (
+                        <option key={cat} value={cat}>
+                          {cat}
+                        </option>
+                      ))}
+                    </optgroup>
+                  </select>
+                  <div style={{ fontSize: 11.5, color: "var(--text-dim)", marginTop: 4 }}>
+                    Nếu bạn chọn một Hệ cụ thể (ví dụ: <em>Hệ thống trung thế</em>), toàn bộ câu hỏi trích xuất từ file sẽ được tự động gán vào Hệ đó.
+                  </div>
+                </div>
+
+                <div style={{ display: "flex", gap: 10, justifyContent: "flex-end" }}>
+                  <button
+                    type="button"
+                    className="btn-secondary"
+                    onClick={() => setShowImportModal(false)}
+                    disabled={parsing}
+                  >
+                    Hủy
+                  </button>
+                  <button
+                    type="submit"
+                    className="btn-primary"
+                    disabled={parsing || !importFile}
+                    style={{ minWidth: 160 }}
+                  >
+                    {parsing ? "Đang phân tích file..." : "Phân tích nội dung file →"}
+                  </button>
+                </div>
+              </form>
+            ) : (
+              // Bước 2: Xem trước kết quả bóc tách và xác nhận lưu
+              <div>
+                <div
+                  style={{
+                    background: "rgba(16, 185, 129, 0.1)",
+                    border: "1px solid rgba(16, 185, 129, 0.3)",
+                    borderRadius: 8,
+                    padding: "12px 16px",
+                    marginBottom: 16,
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                    flexWrap: "wrap",
+                    gap: 10,
+                  }}
+                >
+                  <div>
+                    <div style={{ fontWeight: 700, color: "#34d399", fontSize: 14 }}>
+                      ✓ Đã bóc tách thành công {parsedPreview.totalCount} câu hỏi từ file &quot;{parsedPreview.fileName}&quot;!
+                    </div>
+                    <div style={{ fontSize: 12, color: "var(--text-dim)", marginTop: 2 }}>
+                      Hệ thống áp dụng: <strong>{parsedPreview.categoryApplied}</strong>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    className="btn-secondary"
+                    style={{ fontSize: 12, padding: "4px 10px" }}
+                    onClick={() => setParsedPreview(null)}
+                  >
+                    Chọn file khác
+                  </button>
+                </div>
+
+                {/* Danh sách câu hỏi xem trước */}
+                <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 8, color: "#fff" }}>
+                  Xem trước {parsedPreview.questions.length} câu hỏi chuẩn bị nhập:
+                </div>
+                <div
+                  style={{
+                    maxHeight: 380,
+                    overflowY: "auto",
+                    border: "1px solid var(--panel-border)",
+                    borderRadius: 8,
+                    padding: 12,
+                    marginBottom: 20,
+                    background: "rgba(0,0,0,0.2)",
+                  }}
+                >
+                  {parsedPreview.questions.map((q, idx) => (
+                    <div
+                      key={idx}
+                      style={{
+                        padding: "10px 12px",
+                        borderRadius: 6,
+                        background: "rgba(255,255,255,0.03)",
+                        marginBottom: 10,
+                        borderLeft: "3px solid var(--brand-cyan)",
+                      }}
+                    >
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 10, marginBottom: 6 }}>
+                        <div style={{ fontWeight: 700, fontSize: 13.5, color: "#fff" }}>
+                          Câu {idx + 1}: {q.question_text}
+                        </div>
+                        <span style={{ fontSize: 11, padding: "2px 6px", borderRadius: 4, background: "rgba(56, 189, 248, 0.15)", color: "#38bdf8", whiteSpace: "nowrap" }}>
+                          {q.category}
+                        </span>
+                      </div>
+                      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6, fontSize: 12 }}>
+                        {q.options.map((opt, oIdx) => {
+                          const isCorrect = oIdx === q.correct_index;
+                          return (
+                            <div
+                              key={oIdx}
+                              style={{
+                                color: isCorrect ? "var(--ok)" : "var(--text-dim)",
+                                fontWeight: isCorrect ? 700 : 400,
+                              }}
+                            >
+                              {String.fromCharCode(65 + oIdx)}. {opt} {isCorrect && "✓ (Đáp án đúng)"}
+                            </div>
+                          );
+                        })}
+                      </div>
+                      {q.explanation && (
+                        <div style={{ fontSize: 11.5, color: "var(--brand-cyan)", marginTop: 6, fontStyle: "italic" }}>
+                          Giải thích: {q.explanation}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+
+                <div style={{ display: "flex", gap: 10, justifyContent: "flex-end" }}>
+                  <button
+                    type="button"
+                    className="btn-secondary"
+                    onClick={() => setParsedPreview(null)}
+                    disabled={savingImport}
+                  >
+                    Quay lại
+                  </button>
+                  <button
+                    type="button"
+                    className="btn-primary"
+                    style={{ background: "linear-gradient(135deg, #10b981 0%, #059669 100%)", borderColor: "#10b981" }}
+                    onClick={handleConfirmSaveImport}
+                    disabled={savingImport}
+                  >
+                    {savingImport ? "Đang lưu câu hỏi..." : `Xác nhận Lưu ${parsedPreview.questions.length} câu hỏi vào Ngân hàng`}
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

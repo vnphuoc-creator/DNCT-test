@@ -2,8 +2,8 @@ import os
 import zipfile
 
 output_filename = "public/aht-dnct-quiz-update.zip"
-include_dirs = ["app", "lib", "components", "public"]
-include_files = ["package.json", "next.config.js", "next.config.mjs", "README.md", ".env.example"]
+include_dirs = ["app", "lib", "components", "data", "public"]
+include_files = ["package.json", "middleware.js", "next.config.js", "next.config.mjs", "README.md", ".env.example"]
 
 if os.path.exists(output_filename):
     os.remove(output_filename)

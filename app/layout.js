@@ -7,9 +7,6 @@ export const metadata = {
     : undefined,
   title: "Bài Test Kiến Thức",
   description: "Hệ thống kiểm tra và đánh giá kiến thức kỹ thuật nội bộ",
-   icons: {
-    icon: "/favicon.jpg",
-  },
   openGraph: {
     title: "Bài Test Kiến Thức",
     description: "Hệ thống kiểm tra và đánh giá kiến thức kỹ thuật nội bộ",
