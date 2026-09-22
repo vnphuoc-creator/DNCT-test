@@ -1,5 +1,78 @@
 # Bài Test Kiến Thức — Hướng dẫn cho người mới
 
+## ⚠️ Đã xác định: lỗi build "TypeScript... do not have the required package(s)"
+
+Nếu Vercel báo lỗi build kiểu "It looks like you're trying to use TypeScript but do not have the
+required package(s) installed" — nguyên nhân là trong repo GitHub của bạn đang có sẵn 1 file
+**`tsconfig.json`** (và có thể cả `next-env.d.ts`) còn sót lại từ rất lâu, có thể từ lúc khởi tạo
+project ban đầu. Dự án này hoàn toàn là JavaScript, không cần 2 file này.
+
+**Cách sửa** (làm trực tiếp trên GitHub, không cần upload lại code):
+
+1. Vào repo trên GitHub → tìm file `tsconfig.json` ở ngay thư mục gốc (nếu có cả
+   `next-env.d.ts` thì làm tương tự)
+2. Bấm vào file đó → bấm icon **thùng rác** (hoặc nút **"..."** → **Delete file**) ở góc trên bên
+   phải
+3. Kéo xuống, bấm **Commit changes**
+
+Xong bước này, Vercel sẽ tự động build lại và hết lỗi ngay — không cần upload lại bất kỳ file nào
+khác, vì đây là do 1 file thừa gây lỗi, không phải do thiếu code.
+
+*(Mình đã build thử lại toàn bộ project sau khi bỏ 2 file này — chạy sạch hoàn toàn, đủ 17
+trang, không còn lỗi.)*
+
+---
+
+## Đã xong: Trang Cài đặt hệ thống (mới) — tự quản lý lịch thi, không cần deploy lại
+
+### Bắt buộc: chạy 1 file SQL trước khi dùng
+
+1. Vào Supabase → **SQL Editor** → **New query** (tab trống mới)
+2. Dán và chạy toàn bộ nội dung file **`tao-bang-cai-dat.sql`** — tạo bảng lưu cài đặt, có sẵn
+   giá trị mặc định khớp quy định hiện tại (mở ngày 27, đóng ngày 30)
+
+### Truy cập trang Cài đặt
+
+Vào trang chủ → khu vực "Quản lý & Thống kê" → bấm thẻ **"Cài đặt Hệ thống"** (cần đăng nhập mật
+khẩu admin, dùng chung mật khẩu với Dashboard/Báo cáo).
+
+### 1. Cho phép làm bài sớm (bỏ qua lịch) — đúng yêu cầu chính của bạn
+
+Bật công tắc này → bài test **mở ngay lập tức**, bất kể đang trong hay ngoài khung ngày 27–30.
+Có hiệu lực **tức thì**, không cần deploy lại gì cả. Dùng khi cần cho một vài người làm bài
+trước/làm bù. Nhớ **tắt lại** sau khi xong để khôi phục đúng lịch 27–30 như quy định.
+
+### 2. Vùng nguy hiểm — Xoá kết quả theo kỳ
+
+Sau khi bật "Làm bài sớm" và có người đã làm thử, vào mục này để **xoá sạch các lượt đó** trước
+khi kỳ thi chính thức mở (tránh lẫn vào kết quả thật). Chọn đúng kỳ cần xoá, gõ lại chính xác tên
+kỳ để xác nhận (an toàn, tránh bấm nhầm), rồi mới xoá được — thao tác này không khôi phục lại
+được.
+
+### 3. Lịch mở bài test hằng tháng (tuỳ chỉnh ngày mở/đóng)
+
+Đổi trực tiếp ngày mở/đóng (mặc định 27–30) mà không cần vào Vercel sửa biến môi trường như trước
+đây. Tháng nào ngắn ngày hơn ngày đóng đã đặt (ví dụ tháng 2), hệ thống tự động giới hạn lại đúng
+ngày cuối tháng, không bị lỗi.
+
+### 4. Cấu hình bài thi — 2 gợi ý bổ sung mình thêm sẵn
+
+Ngoài đúng 2 yêu cầu chính, mình thêm luôn 2 mục hay dùng để đỡ phải nhờ sửa code sau này:
+
+- **Số câu hỏi mỗi lượt thi** (mặc định 25) — đổi trực tiếp không cần sửa code
+- **Ngưỡng điểm ĐẠT để hiện lời chúc mừng** (mặc định 80%) — đổi trực tiếp không cần sửa code
+
+### Vài gợi ý khác cho lần sau (chưa làm, nói mình biết nếu muốn thêm)
+
+- **Đổi mật khẩu admin ngay trong trang Cài đặt** (hiện tại vẫn phải vào Vercel sửa biến môi
+  trường `ADMIN_PASSWORD`)
+- **Bật/tắt công khai trang Ôn tập** — tạm khoá toàn bộ web khi cần bảo trì
+- **Nhật ký thao tác (audit log)** — ghi lại ai đã bật "làm bài sớm" lúc nào, ai đã xoá kỳ nào,
+  hữu ích nếu sau này có nhiều admin cùng quản lý
+- **Đặt lịch tự động bật/tắt** "làm bài sớm" theo giờ, thay vì phải tự bật/tắt tay
+
+---
+
 ## Đã xong: lời nhắn chúc mừng / động viên khi nộp bài (ngưỡng 80%)
 
 Sau khi bấm nộp bài (bài thi chính thức), ngay dưới đồng hồ đo điểm sẽ hiện thêm 1 khung lời nhắn:
@@ -771,3 +844,64 @@ bảo vệ bằng mật khẩu.
 - Hiện bảng xếp hạng (leaderboard) theo điểm cao nhất
 
 Cứ quay lại hỏi khi bạn muốn làm thêm phần nào trong số này.
+
+
+# CẬP NHẬT MỚI — DNCT TEST (22/09/2026)
+
+## 1. Lịch mở bài test có khung giờ
+Trong `/admin-settings` → **Lịch mở bài test hằng tháng**, admin cấu hình:
+- Ngày mở + giờ mở
+- Ngày đóng + giờ đóng
+- Tất cả thời gian được tính theo **giờ Việt Nam (UTC+7)**.
+
+## 2. Đăng nhập 2 bước
+Người làm bài phải:
+1. Chọn đúng họ tên trong danh sách nhân sự đã đăng ký.
+2. Nhập email đã đăng ký tương ứng với tên đó.
+Hệ thống đối chiếu email trước khi cho vào bài thi.
+
+## 3. 10 bộ đề cố định
+Trong `/admin-settings` → **Chế độ phát đề & 10 bộ đề cố định**:
+- Bấm **Tạo lại 10 bộ đề**.
+- Mỗi bộ có đúng 25 câu.
+- Câu hỏi được phân bổ cân bằng nhất có thể giữa các hệ thống đang có câu hỏi.
+- Admin xem được toàn bộ nội dung và đáp án của từng bộ.
+- Chọn **Bộ đề cố định** + một bộ cụ thể để gửi cùng bộ đề cho tất cả người tham gia.
+- Chọn **Ngẫu nhiên theo hệ** để quay lại cách phát đề cũ.
+
+**Bắt buộc:** chạy `nang-cap-dnct-test.sql` trong Supabase SQL Editor trước khi dùng tính năng này.
+
+## 4. Xóa bài của một nhân viên / cho thi lại
+Trang **Lịch sử Bài làm & Quản lý Kết quả** đã có nút **Cho thi lại**. Migration mới bổ sung quyền DELETE cho `quiz_results`, nên:
+- Xóa một kết quả cụ thể → nhân viên có thể làm lại.
+- Xóa toàn bộ kết quả theo kỳ trong `/admin-settings` → dùng vùng nguy hiểm.
+**Bắt buộc:** chạy `nang-cap-dnct-test.sql`.
+
+## 5. Import câu hỏi PDF / Word
+Trong **Ngân hàng câu hỏi** có khu vực Import:
+- Chọn hệ thống trước.
+- Chọn `.pdf` hoặc `.docx`.
+- Hệ thống đọc và xem trước câu hỏi.
+- Bấm Import để thêm vào đúng hệ.
+
+Định dạng khuyến nghị:
+```
+Câu 1. Nội dung câu hỏi?
+A. Đáp án A
+B. Đáp án B
+C. Đáp án C
+D. Đáp án D
+Đáp án: B
+Giải thích: ...
+```
+Câu không nhận diện được đáp án đúng sẽ không được đưa vào bản xem trước/import.
+
+### Sau khi cập nhật code
+Chạy:
+```
+npm install
+npm run build
+```
+Sau đó deploy lại Vercel.
+
+**Lưu ý:** bản cập nhật sử dụng thêm `mammoth` và `pdfjs-dist`; package manager sẽ cài tự động từ `package.json`.
