@@ -334,7 +334,7 @@ export default function AdminQuestionsPage() {
           File nên trình bày mỗi câu theo dạng: dòng đầu <code>Câu 1: Nội dung...</code>, tiếp theo
           các dòng đáp án <code>A. ...</code>, <code>B. ...</code>..., và 1 dòng{" "}
           <code>Đáp án đúng: B</code>. Sau khi phân tích, bạn xem lại và sửa trước khi lưu vào
-          ngân hàng câu hỏi — chưa lưu gì cho tới khi bấm "Nhập vào ngân hàng câu hỏi".
+          ngân hàng câu hỏi — chưa lưu gì cho tới khi bấm &quot;Nhập vào ngân hàng câu hỏi&quot;.
         </p>
 
         {importError && <div className="error-box">{importError}</div>}
