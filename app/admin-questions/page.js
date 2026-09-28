@@ -3,7 +3,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "../../lib/supabaseClient";
 import { FIXED_CATEGORIES } from "../../lib/categories";
-import { parseQuestionsFromText } from "../../lib/questionImport";
 
 const emptyForm = {
   id: null,
@@ -21,17 +20,20 @@ export default function AdminQuestionsPage() {
   const [questions, setQuestions] = useState([]);
   const [search, setSearch] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("");
-  const [mode, setMode] = useState("list"); // list | edit
+  const [mode, setMode] = useState("list"); // list | edit | import
   const [form, setForm] = useState(emptyForm);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState("");
   const [uploadingImage, setUploadingImage] = useState(false);
   const [customCategory, setCustomCategory] = useState(false);
-  const [importCategory, setImportCategory] = useState(FIXED_CATEGORIES[0]);
+
+  // ---- Nhập câu hỏi từ file PDF/Word ----
+  const [importCategory, setImportCategory] = useState("");
   const [importFile, setImportFile] = useState(null);
-  const [importPreview, setImportPreview] = useState([]);
-  const [importing, setImporting] = useState(false);
-  const [importMessage, setImportMessage] = useState("");
+  const [analyzing, setAnalyzing] = useState(false);
+  const [importError, setImportError] = useState("");
+  const [importQuestions, setImportQuestions] = useState([]); // preview, có thể sửa trước khi lưu
+  const [savingImport, setSavingImport] = useState(false);
 
   useEffect(() => {
     loadQuestions();
@@ -73,62 +75,6 @@ export default function AdminQuestionsPage() {
     }
     return counts;
   }, [questions]);
-
-  async function extractTextFromFile(file) {
-    const buffer = await file.arrayBuffer();
-    if (file.name.toLowerCase().endsWith(".docx")) {
-      const mammoth = await import("mammoth");
-      const out = await mammoth.extractRawText({ arrayBuffer: buffer });
-      return out.value || "";
-    }
-    if (file.name.toLowerCase().endsWith(".pdf")) {
-      const pdfjs = await import("pdfjs-dist/legacy/build/pdf.mjs");
-      const pdf = await pdfjs.getDocument({ data: buffer, disableWorker: true }).promise;
-      const pages = [];
-      for (let i = 1; i <= pdf.numPages; i++) {
-        const page = await pdf.getPage(i);
-        const content = await page.getTextContent();
-        pages.push(content.items.map((item) => item.str).join("\n"));
-      }
-      return pages.join("\n");
-    }
-    throw new Error("Chỉ hỗ trợ PDF và Word .docx.");
-  }
-
-  async function previewImport(file) {
-    setImportFile(file);
-    setImportMessage("");
-    setImportPreview([]);
-    if (!file) return;
-    try {
-      const raw = await extractTextFromFile(file);
-      const parsed = parseQuestionsFromText(raw, importCategory);
-      setImportPreview(parsed);
-      if (!parsed.length) {
-        setImportMessage("Không nhận diện được câu hỏi. Kiểm tra định dạng: Câu số → A/B/C/D → Đáp án: A/B/C/D.");
-      } else {
-        setImportMessage(`Đã nhận diện ${parsed.length} câu. Kiểm tra xem trước rồi bấm Import.`);
-      }
-    } catch (err) {
-      setImportMessage("Đọc file thất bại: " + (err.message || err));
-    }
-  }
-
-  async function handleImportQuestions() {
-    if (!importPreview.length) return;
-    setImporting(true);
-    const payload = importPreview.map((q) => ({ ...q, category: importCategory }));
-    const { error } = await supabase.from("questions").insert(payload);
-    setImporting(false);
-    if (error) {
-      setImportMessage("Import thất bại: " + error.message);
-      return;
-    }
-    setImportMessage(`✓ Đã import ${payload.length} câu vào "${importCategory}".`);
-    setImportPreview([]);
-    setImportFile(null);
-    await loadQuestions();
-  }
 
   function openCreate() {
     setForm(emptyForm);
@@ -271,6 +217,97 @@ export default function AdminQuestionsPage() {
     loadQuestions();
   }
 
+  // ---- Nhập câu hỏi từ file PDF/Word ----
+
+  function openImport() {
+    setImportCategory("");
+    setImportFile(null);
+    setImportError("");
+    setImportQuestions([]);
+    setMode("import");
+  }
+
+  async function handleAnalyzeFile(e) {
+    e.preventDefault();
+    setImportError("");
+
+    if (!importCategory) {
+      setImportError("Vui lòng chọn hệ (chủ đề) trước khi phân tích file.");
+      return;
+    }
+    if (!importFile) {
+      setImportError("Vui lòng chọn file PDF hoặc Word.");
+      return;
+    }
+
+    setAnalyzing(true);
+    try {
+      const fd = new FormData();
+      fd.append("file", importFile);
+      const res = await fetch("/api/import-questions", { method: "POST", body: fd });
+      const data = await res.json();
+      if (!res.ok || !data.ok) {
+        setImportError(data.message || "Phân tích file thất bại.");
+        setAnalyzing(false);
+        return;
+      }
+      setImportQuestions(
+        data.questions.map((q) => ({
+          ...q,
+          category: importCategory,
+          include: !q.needsReview,
+        }))
+      );
+    } catch (err) {
+      setImportError("Lỗi khi gửi file lên: " + String(err.message || err));
+    }
+    setAnalyzing(false);
+  }
+
+  function updateImportQuestion(index, patch) {
+    setImportQuestions((list) => list.map((q, i) => (i === index ? { ...q, ...patch } : q)));
+  }
+
+  async function handleConfirmImport() {
+    const toInsert = importQuestions.filter((q) => q.include);
+    if (toInsert.length === 0) {
+      setImportError("Chưa có câu hỏi nào được chọn để nhập.");
+      return;
+    }
+    const invalid = toInsert.some(
+      (q) =>
+        !q.question_text.trim() ||
+        q.options.filter((o) => o.trim()).length < 2 ||
+        q.correct_index < 0 ||
+        q.correct_index >= q.options.length ||
+        !q.options[q.correct_index]?.trim()
+    );
+    if (invalid) {
+      setImportError(
+        "Có câu hỏi thiếu nội dung/đáp án đúng hợp lệ — hãy kiểm tra lại các câu đánh dấu ⚠️."
+      );
+      return;
+    }
+
+    setSavingImport(true);
+    setImportError("");
+    const payload = toInsert.map((q) => ({
+      question_text: q.question_text.trim(),
+      options: q.options.map((o) => o.trim()),
+      correct_index: q.correct_index,
+      category: q.category || null,
+    }));
+    const { error } = await supabase.from("questions").insert(payload);
+    setSavingImport(false);
+    if (error) {
+      setImportError("Lưu vào ngân hàng câu hỏi thất bại: " + error.message);
+      return;
+    }
+    alert(`Đã nhập thành công ${toInsert.length} câu hỏi vào ngân hàng.`);
+    setMode("list");
+    loadQuestions();
+  }
+
   if (status === "loading") {
     return (
       <div className="card">
@@ -284,6 +321,172 @@ export default function AdminQuestionsPage() {
       <div className="card">
         <div className="error-box">{errorMsg}</div>
         <a href="/">← Quay lại trang chủ</a>
+      </div>
+    );
+  }
+
+  if (mode === "import") {
+    return (
+      <div className="card" style={{ maxWidth: 820 }}>
+        <div className="eyebrow">Quản lý câu hỏi</div>
+        <h2>Nhập câu hỏi từ file PDF / Word</h2>
+        <p style={{ marginTop: -8, fontSize: 13.5, color: "var(--text-dim)" }}>
+          File nên trình bày mỗi câu theo dạng: dòng đầu <code>Câu 1: Nội dung...</code>, tiếp theo
+          các dòng đáp án <code>A. ...</code>, <code>B. ...</code>..., và 1 dòng{" "}
+          <code>Đáp án đúng: B</code>. Sau khi phân tích, bạn xem lại và sửa trước khi lưu vào
+          ngân hàng câu hỏi — chưa lưu gì cho tới khi bấm "Nhập vào ngân hàng câu hỏi".
+        </p>
+
+        {importError && <div className="error-box">{importError}</div>}
+
+        {importQuestions.length === 0 && (
+          <form onSubmit={handleAnalyzeFile}>
+            <label>Hệ (chủ đề) áp dụng cho các câu hỏi trong file này</label>
+            <select
+              className="field"
+              value={importCategory}
+              onChange={(e) => setImportCategory(e.target.value)}
+            >
+              <option value="">— Chọn hệ —</option>
+              {FIXED_CATEGORIES.map((c) => (
+                <option key={c} value={c}>
+                  {c}
+                </option>
+              ))}
+            </select>
+
+            <label>Chọn file (.pdf, .doc, .docx)</label>
+            <input
+              className="field"
+              type="file"
+              accept=".pdf,.doc,.docx"
+              onChange={(e) => setImportFile(e.target.files?.[0] || null)}
+            />
+
+            <div className="link-row">
+              <button type="submit" className="btn-primary" disabled={analyzing}>
+                {analyzing ? "Đang phân tích..." : "Phân tích file"}
+              </button>
+              <button
+                type="button"
+                className="btn-secondary"
+                onClick={() => setMode("list")}
+                disabled={analyzing}
+              >
+                Huỷ
+              </button>
+            </div>
+          </form>
+        )}
+
+        {importQuestions.length > 0 && (
+          <>
+            <p>
+              Nhận diện được <strong>{importQuestions.length}</strong> câu hỏi. Các câu đánh dấu{" "}
+              <span style={{ color: "var(--danger)" }}>⚠️</span> cần bạn xem lại nội dung/đáp án
+              đúng trước khi nhập.
+            </p>
+
+            <div style={{ display: "flex", flexDirection: "column", gap: 14, maxHeight: 560, overflowY: "auto" }}>
+              {importQuestions.map((q, i) => (
+                <div
+                  key={i}
+                  style={{
+                    border: `1px solid ${q.needsReview ? "var(--danger)" : "var(--panel-border)"}`,
+                    borderRadius: 8,
+                    padding: 12,
+                  }}
+                >
+                  <div style={{ display: "flex", alignItems: "flex-start", gap: 10 }}>
+                    <input
+                      type="checkbox"
+                      checked={q.include}
+                      onChange={(e) => updateImportQuestion(i, { include: e.target.checked })}
+                      style={{ width: 18, height: 18, marginTop: 4, flexShrink: 0 }}
+                      title="Chọn để nhập câu này"
+                    />
+                    <div style={{ flex: 1 }}>
+                      {q.needsReview && (
+                        <div style={{ color: "var(--danger)", fontSize: 12.5, marginBottom: 4 }}>
+                          ⚠️ {q.warning}
+                        </div>
+                      )}
+                      <textarea
+                        className="field"
+                        rows={2}
+                        style={{ marginBottom: 8 }}
+                        value={q.question_text}
+                        onChange={(e) => updateImportQuestion(i, { question_text: e.target.value })}
+                      />
+                      {q.options.map((opt, oi) => (
+                        <div key={oi} style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 6 }}>
+                          <input
+                            type="radio"
+                            name={`import-correct-${i}`}
+                            checked={q.correct_index === oi}
+                            onChange={() => updateImportQuestion(i, { correct_index: oi })}
+                            style={{ width: 16, height: 16, flexShrink: 0 }}
+                            title="Đánh dấu là đáp án đúng"
+                          />
+                          <input
+                            className="field"
+                            style={{ margin: 0, flex: 1 }}
+                            type="text"
+                            value={opt}
+                            onChange={(e) => {
+                              const options = [...q.options];
+                              options[oi] = e.target.value;
+                              updateImportQuestion(i, { options });
+                            }}
+                            placeholder={`Đáp án ${String.fromCharCode(65 + oi)}`}
+                          />
+                        </div>
+                      ))}
+                      <select
+                        className="field"
+                        style={{ marginTop: 4 }}
+                        value={q.category || ""}
+                        onChange={(e) => updateImportQuestion(i, { category: e.target.value })}
+                      >
+                        <option value="">— Chưa chọn hệ —</option>
+                        {FIXED_CATEGORIES.map((c) => (
+                          <option key={c} value={c}>
+                            {c}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <div className="link-row" style={{ marginTop: 16 }}>
+              <button
+                className="btn-primary"
+                onClick={handleConfirmImport}
+                disabled={savingImport}
+              >
+                {savingImport
+                  ? "Đang lưu..."
+                  : `Nhập ${importQuestions.filter((q) => q.include).length} câu vào ngân hàng câu hỏi`}
+              </button>
+              <button
+                className="btn-secondary"
+                onClick={() => {
+                  setImportQuestions([]);
+                  setImportFile(null);
+                }}
+                disabled={savingImport}
+              >
+                ← Chọn file khác
+              </button>
+              <button className="btn-secondary" onClick={() => setMode("list")} disabled={savingImport}>
+                Huỷ
+              </button>
+            </div>
+          </>
+        )}
       </div>
     );
   }
@@ -456,46 +659,6 @@ export default function AdminQuestionsPage() {
       <div className="eyebrow">Quản lý câu hỏi</div>
       <h1>Ngân hàng câu hỏi ({questions.length} câu)</h1>
 
-      <div style={{ margin: "16px 0 20px", padding: 16, border: "1px solid var(--panel-border)", borderRadius: 12, background: "rgba(255,255,255,.025)" }}>
-        <h2 style={{ margin: 0, fontSize: 17 }}>Import câu hỏi từ PDF / Word</h2>
-        <p style={{ color: "var(--text-dim)", fontSize: 12, lineHeight: 1.5 }}>
-          Chọn đúng hệ thống trước khi import. Hỗ trợ <strong>.pdf</strong> và <strong>.docx</strong>.
-          File nên có cấu trúc: Câu 1 → A/B/C/D → Đáp án: B. Câu không có đáp án đúng sẽ không được import.
-        </p>
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-          <div>
-            <label>Hệ thống</label>
-            <select className="field" value={importCategory} onChange={(e) => { setImportCategory(e.target.value); setImportPreview([]); }}>
-              {FIXED_CATEGORIES.map((cat) => <option key={cat} value={cat}>{cat}</option>)}
-            </select>
-          </div>
-          <div>
-            <label>File câu hỏi</label>
-            <input className="field" type="file" accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-              onChange={(e) => previewImport(e.target.files?.[0])} />
-          </div>
-        </div>
-        {importMessage && <div style={{ marginTop: 10 }} className={importPreview.length ? "saved-flash" : "error-box"}>{importMessage}</div>}
-        {importPreview.length > 0 && (
-          <div style={{ marginTop: 12 }}>
-            <div style={{ maxHeight: 260, overflow: "auto", padding: 10, border: "1px solid var(--panel-border)", borderRadius: 8 }}>
-              {importPreview.slice(0, 20).map((q, i) => (
-                <div key={i} style={{ padding: "8px 0", borderBottom: "1px solid var(--panel-border)" }}>
-                  <strong>{i + 1}. {q.question_text}</strong>
-                  <div style={{ fontSize: 12, color: "var(--text-dim)" }}>
-                    {q.options.map((o, j) => `${String.fromCharCode(65+j)}. ${o}`).join(" · ")} · Đúng: {String.fromCharCode(65 + q.correct_index)}
-                  </div>
-                </div>
-              ))}
-              {importPreview.length > 20 && <div style={{ marginTop: 8, color: "var(--text-dim)" }}>... và {importPreview.length - 20} câu nữa</div>}
-            </div>
-            <button className="btn-primary" style={{ marginTop: 10 }} onClick={handleImportQuestions} disabled={importing}>
-              {importing ? "Đang import..." : `Import ${importPreview.length} câu vào ${importCategory}`}
-            </button>
-          </div>
-        )}
-      </div>
-
       <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
         <input
           className="field"
@@ -524,7 +687,10 @@ export default function AdminQuestionsPage() {
           )}
         </select>
       </div>
-      <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 10, marginBottom: 18 }}>
+      <div style={{ display: "flex", justifyContent: "flex-end", gap: 10, marginTop: 10, marginBottom: 18 }}>
+        <button className="btn-secondary" onClick={openImport}>
+          ⇪ Nhập từ PDF/Word
+        </button>
         <button className="btn-primary" onClick={openCreate}>
           + Thêm câu hỏi
         </button>

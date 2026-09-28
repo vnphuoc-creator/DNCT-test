@@ -27,8 +27,8 @@ export default function HomePage() {
   const [loadingUsers, setLoadingUsers] = useState(true);
   const [query, setQuery] = useState("");
   const [selected, setSelected] = useState(null); // { id, full_name, email }
-  const [enteredEmail, setEnteredEmail] = useState("");
   const [showList, setShowList] = useState(false);
+  const [confirmEmail, setConfirmEmail] = useState("");
   const [error, setError] = useState("");
   const [checking, setChecking] = useState(false);
   const [windowStatus, setWindowStatus] = useState({ open: true, reason: null });
@@ -66,7 +66,7 @@ export default function HomePage() {
     if (!q) return allUsers.slice(0, 8);
     return allUsers
       .filter(
-        (u) => u.full_name.toLowerCase().includes(q)
+        (u) => u.full_name.toLowerCase().includes(q) || u.email.toLowerCase().includes(q)
       )
       .slice(0, 8);
   }, [allUsers, query]);
@@ -74,14 +74,15 @@ export default function HomePage() {
   function handlePick(user) {
     setSelected(user);
     setQuery(user.full_name);
-    setEnteredEmail("");
     setShowList(false);
+    setConfirmEmail("");
     setError("");
   }
 
   function handleQueryChange(v) {
     setQuery(v);
     setSelected(null);
+    setConfirmEmail("");
     setShowList(true);
   }
 
@@ -91,18 +92,20 @@ export default function HomePage() {
 
     if (!selected) {
       setError(
-        "Bước 1: Vui lòng chọn đúng tên của bạn trong danh sách gợi ý. Nếu chưa có tên, vui lòng liên hệ quản lý Đội ĐNCT."
+        "Vui lòng chọn đúng tên của bạn trong danh sách gợi ý. Nếu chưa có tên, vui lòng liên hệ quản lý Đội ĐNCT."
       );
       return;
     }
 
-    const normalizedEmail = enteredEmail.trim().toLowerCase();
-    if (!normalizedEmail) {
-      setError("Bước 2: Vui lòng nhập địa chỉ email đã được đăng ký cho tên này.");
+    const typedEmail = confirmEmail.trim().toLowerCase();
+    if (!typedEmail) {
+      setError("Vui lòng nhập địa chỉ email của bạn để xác nhận danh tính.");
       return;
     }
-    if (normalizedEmail !== selected.email.trim().toLowerCase()) {
-      setError("Email không khớp với tên đã chọn. Vui lòng nhập đúng email đã được quản lý lưu trong hệ thống.");
+    if (typedEmail !== selected.email.trim().toLowerCase()) {
+      setError(
+        "Email vừa nhập không khớp với email đã đăng ký cho tên này. Vui lòng kiểm tra lại."
+      );
       return;
     }
 
@@ -116,7 +119,7 @@ export default function HomePage() {
     const { data, error: fetchError } = await supabase
       .from("quiz_results")
       .select("id, score, total, created_at")
-      .ilike("email", normalizedEmail)
+      .ilike("email", selected.email)
       .eq("period", getCurrentPeriod())
       .order("created_at", { ascending: false })
       .limit(1);
@@ -174,7 +177,7 @@ export default function HomePage() {
         {error && <div className="error-box">{error}</div>}
 
         <label htmlFor="who" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-          <span>Bước 1 — Chọn họ và tên nhân sự:</span>
+          <span>Họ và tên hoặc Email nhân sự:</span>
           {selected && (
             <span style={{ fontSize: 12, color: "var(--ok)", display: "flex", alignItems: "center", gap: 4 }}>
               <CheckCircle2 size={13} /> Đã xác thực
@@ -222,7 +225,7 @@ export default function HomePage() {
                     <strong style={{ fontSize: 14, color: "#ffffff" }}>{u.full_name}</strong>
                     <span style={{ fontSize: 12, color: "var(--text-dim)" }}>Mã NV: #{u.id}</span>
                   </div>
-                  <span className="email">Nhập email ở bước 2</span>
+                  <span className="email">{u.email}</span>
                 </div>
               ))}
             </div>
@@ -232,22 +235,22 @@ export default function HomePage() {
         {showList && query.trim() && matches.length > 0 && <div style={{ height: 16 }} />}
 
         {selected && (
-          <div style={{ marginBottom: 16 }}>
-            <label htmlFor="email-confirm">Bước 2 — Nhập email đã đăng ký của bạn:</label>
+          <>
+            <label htmlFor="confirm-email">Nhập lại địa chỉ email của bạn để xác nhận:</label>
             <input
-              id="email-confirm"
+              id="confirm-email"
               className="field"
               type="email"
-              autoComplete="email"
-              placeholder="Nhập đúng email đã đăng ký với tên này"
-              value={enteredEmail}
-              onChange={(e) => { setEnteredEmail(e.target.value); setError(""); }}
-              disabled={!windowStatus.open || loadingUsers}
+              autoComplete="off"
+              placeholder="ten@gmail.com"
+              value={confirmEmail}
+              onChange={(e) => setConfirmEmail(e.target.value)}
+              disabled={!windowStatus.open}
             />
-            <div style={{ marginTop: 6, fontSize: 12, color: "var(--text-dim)" }}>
-              Email phải khớp chính xác với email mà quản lý đã lưu cho <strong>{selected.full_name}</strong>.
-            </div>
-          </div>
+            <p style={{ marginTop: -10, marginBottom: 16, fontSize: 12.5, color: "var(--text-dim)" }}>
+              Email phải trùng khớp với email đã lưu cho tên <strong>{selected.full_name}</strong> trong hệ thống.
+            </p>
+          </>
         )}
 
         <button

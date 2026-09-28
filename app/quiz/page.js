@@ -5,49 +5,10 @@ import { supabase } from "../../lib/supabaseClient";
 import { getQuizWindowStatus, formatWindowMessage } from "../../lib/quizWindow";
 import { getSettings } from "../../lib/settings";
 import { getCurrentPeriod, formatPeriodLabel } from "../../lib/period";
+import { shuffle, pickEvenlyAcrossCategories } from "../../lib/quizPicker";
 import ScoreGauge from "../components/ScoreGauge";
 
 // Giá trị mặc định dự phòng — có thể ghi đè động qua trang Cài đặt (app_settings)
-
-function shuffle(array) {
-  const copy = [...array];
-  for (let i = copy.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [copy[i], copy[j]] = [copy[j], copy[i]];
-  }
-  return copy;
-}
-
-// Bốc câu hỏi CHIA ĐỀU theo từng chủ đề (category), thay vì random thuần —
-// tránh việc hệ nào có nhiều câu trong kho sẽ chiếm phần lớn bài test.
-// Cách làm: trộn ngẫu nhiên câu hỏi trong từng chủ đề, rồi lấy lần lượt
-// "vòng tròn" mỗi chủ đề 1 câu cho tới khi đủ số lượng cần thiết.
-function pickEvenlyAcrossCategories(allQuestions, count) {
-  const byCategory = {};
-  for (const q of allQuestions) {
-    const key = q.category || "Khác";
-    if (!byCategory[key]) byCategory[key] = [];
-    byCategory[key].push(q);
-  }
-  const categoryKeys = shuffle(Object.keys(byCategory));
-  const shuffledGroups = categoryKeys.map((key) => shuffle(byCategory[key]));
-
-  const picked = [];
-  let round = 0;
-  while (picked.length < count) {
-    let addedThisRound = false;
-    for (const group of shuffledGroups) {
-      if (picked.length >= count) break;
-      if (group[round]) {
-        picked.push(group[round]);
-        addedThisRound = true;
-      }
-    }
-    if (!addedThisRound) break; // hết sạch câu hỏi ở mọi chủ đề
-    round += 1;
-  }
-  return shuffle(picked); // trộn lại thứ tự cuối cùng để không lộ theo nhóm
-}
 
 const DEFAULT_QUESTIONS_PER_QUIZ = 25;
 const DEFAULT_PASS_THRESHOLD = 80;
@@ -83,7 +44,6 @@ export default function QuizPage() {
   const [questionsPerQuiz, setQuestionsPerQuiz] = useState(DEFAULT_QUESTIONS_PER_QUIZ);
   const [passThreshold, setPassThreshold] = useState(DEFAULT_PASS_THRESHOLD);
   const [userAnswers, setUserAnswers] = useState([]);
-  const [activeQuizSet, setActiveQuizSet] = useState(null);
   const startTimeRef = useRef(null);
 
   useEffect(() => {
@@ -109,33 +69,18 @@ export default function QuizPage() {
         setPassThreshold(parseInt(settings.quiz_pass_threshold, 10) || DEFAULT_PASS_THRESHOLD);
       }
 
-      let selectedSet = null;
-      if (settings.quiz_mode === "fixed" && settings.quiz_active_set_id) {
-        const { data: setRows } = await supabase
-          .from("quiz_sets")
-          .select("id, name")
-          .eq("id", settings.quiz_active_set_id)
-          .limit(1);
-        selectedSet = setRows?.[0] || null;
-        if (!selectedSet) {
-          setErrorMsg("Admin đã chọn chế độ Bộ đề cố định nhưng bộ đề hiện tại không còn tồn tại.");
-          setStatus("error");
-          return;
-        }
-      }
-
-      const configuredCount = parseInt(settings.quiz_questions_count, 10) || DEFAULT_QUESTIONS_PER_QUIZ;
-      const desiredCount = selectedSet ? 25 : configuredCount;
-      if (selectedSet) setQuestionsPerQuiz(25);
-      setActiveQuizSet(selectedSet);
       setUserName(savedName);
       setUserEmail(savedEmail);
-      checkAlreadyTakenThenLoad(savedEmail, desiredCount, selectedSet?.id || null);
+      checkAlreadyTakenThenLoad(
+        savedEmail,
+        parseInt(settings.quiz_questions_count, 10) || DEFAULT_QUESTIONS_PER_QUIZ,
+        settings
+      );
     }
     init();
   }, []);
 
-  async function checkAlreadyTakenThenLoad(emailToCheck, questionsCount, setId = null) {
+  async function checkAlreadyTakenThenLoad(emailToCheck, questionsCount, settings) {
     const { data, error } = await supabase
       .from("quiz_results")
       .select("id, score, total")
@@ -155,41 +100,60 @@ export default function QuizPage() {
       setStatus("error");
       return;
     }
-    loadQuestions(questionsCount, setId);
+    loadQuestions(questionsCount, settings);
   }
 
-  async function loadQuestions(questionsCount, setId = null) {
-    if (setId) {
-      const { data, error } = await supabase
-        .from("quiz_set_questions")
-        .select("position, questions(*)")
-        .eq("set_id", setId)
-        .order("position", { ascending: true });
-      if (error) {
-        setErrorMsg("Không tải được bộ đề cố định: " + error.message);
+  async function loadQuestions(questionsCount, settings) {
+    // Chế độ "bộ đề cố định": mọi người làm chung đúng bộ câu hỏi admin đã chọn sẵn,
+    // thay vì mỗi người 1 đề random riêng.
+    if (settings && settings.quiz_mode === "fixed_set" && settings.quiz_active_set_id) {
+      const { data: setRow, error: setError } = await supabase
+        .from("question_sets")
+        .select("question_ids")
+        .eq("id", settings.quiz_active_set_id)
+        .single();
+
+      if (setError || !setRow) {
+        setErrorMsg(
+          "Không tải được bộ đề cố định đã chọn: " + (setError?.message || "không tìm thấy bộ đề.")
+        );
         setStatus("error");
         return;
       }
-      const picked = (data || []).map((row) => row.questions).filter(Boolean);
-      if (picked.length < questionsCount) {
-        setErrorMsg(`Bộ đề cố định chỉ có ${picked.length} câu, cần ${questionsCount} câu.`);
+
+      const ids = setRow.question_ids || [];
+      const { data: setQuestions, error: qError } = await supabase
+        .from("questions")
+        .select("*")
+        .in("id", ids);
+
+      if (qError) {
+        setErrorMsg(qError.message);
         setStatus("error");
         return;
       }
-      setQuestions(picked.slice(0, questionsCount));
+      if (!setQuestions || setQuestions.length === 0) {
+        setErrorMsg("Bộ đề cố định đang chọn không còn câu hỏi nào hợp lệ.");
+        setStatus("error");
+        return;
+      }
+      setQuestions(shuffle(setQuestions));
       startTimeRef.current = Date.now();
       setStatus("playing");
       return;
     }
 
     const { data, error } = await supabase.from("questions").select("*");
+
     if (error) {
       setErrorMsg(error.message);
       setStatus("error");
       return;
     }
     if (!data || data.length === 0) {
-      setErrorMsg("Chưa có câu hỏi nào trong bảng 'questions'. Hãy thêm câu hỏi trong Supabase trước.");
+      setErrorMsg(
+        "Chưa có câu hỏi nào trong bảng 'questions'. Hãy thêm câu hỏi trong Supabase trước."
+      );
       setStatus("error");
       return;
     }
@@ -252,8 +216,6 @@ export default function QuizPage() {
       answers: answers || userAnswers,
       duration_seconds: durationSeconds,
       period: getCurrentPeriod(),
-      quiz_set_id: activeQuizSet?.id || null,
-      quiz_set_name: activeQuizSet?.name || null,
     });
     setSaving(false);
     if (error) {
@@ -335,7 +297,7 @@ export default function QuizPage() {
         />
       </div>
       <div className="eyebrow">
-        {activeQuizSet ? `${activeQuizSet.name} · ` : ""}Câu {current + 1}/{questions.length}
+        Câu {current + 1}/{questions.length}
       </div>
       <h2>{q.question_text}</h2>
 
