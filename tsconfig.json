@@ -21,5 +21,5 @@
     "plugins": [{"name": "next"}]
   },
   "include": ["next-env.d.ts", ".next/types/**/*.ts", "**/*.ts", "**/*.tsx"],
-  "exclude": ["node_modules", "server.ts"]
+  "exclude": ["node_modules", "server.ts", "DNCT-test-import-fix/**"]
 }
