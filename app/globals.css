@@ -664,6 +664,19 @@ label {
   transform: translateX(2px);
 }
 
+.option.picked {
+  background: rgba(2, 132, 199, 0.28) !important;
+  border: 2px solid var(--brand-cyan) !important;
+  color: #ffffff !important;
+  font-weight: 600;
+  box-shadow: 0 0 0 2px rgba(56, 189, 248, 0.12), 0 0 16px rgba(56, 189, 248, 0.12);
+}
+
+.option.picked > span:first-child {
+  background: var(--brand-cyan) !important;
+  color: #0b1728 !important;
+}
+
 .option.correct {
   background: rgba(16, 185, 129, 0.25) !important;
   border-color: var(--ok) !important;
