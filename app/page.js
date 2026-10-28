@@ -1,12 +1,12 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { supabase } from "../../lib/supabaseClient";
-import { getQuizWindowStatus, formatWindowMessage } from "../../lib/quizWindow";
-import { getSettings } from "../../lib/settings";
-import { getCurrentPeriod, formatPeriodLabel } from "../../lib/period";
-import { shuffle, pickEvenlyAcrossCategories } from "../../lib/quizPicker";
-import ScoreGauge from "../components/ScoreGauge";
+import { supabase } from "../lib/supabaseClient";
+import { getQuizWindowStatus, formatWindowMessage } from "../lib/quizWindow";
+import { getSettings } from "../lib/settings";
+import { getCurrentPeriod, formatPeriodLabel } from "../lib/period";
+import { shuffle, pickEvenlyAcrossCategories } from "../lib/quizPicker";
+import ScoreGauge from "./components/ScoreGauge";
 
 // Giá trị mặc định dự phòng — có thể ghi đè động qua trang Cài đặt (app_settings)
 
